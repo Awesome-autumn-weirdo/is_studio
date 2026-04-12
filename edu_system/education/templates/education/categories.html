@@ -1,0 +1,15 @@
+<!-- education/templates/education/categories.html -->
+{% extends 'base.html' %}
+
+{% block title %}Категории курсов{% endblock %}
+
+{% block content %}
+    <h1>Категории курсов</h1>
+    <ul>
+        {% for category in categories %}
+            <li><a href="#">{{ category.name }}</a></li>
+        {% empty %}
+            <li>Категории пока не добавлены.</li>
+        {% endfor %}
+    </ul>
+{% endblock %}

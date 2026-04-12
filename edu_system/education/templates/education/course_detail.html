@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ course.title }}{% endblock %}
+
+{% block content %}
+    <div class="course-detail">
+        <h1>{{ course.title }}</h1>
+        
+        <div class="course-meta">
+            <p><strong>Категория:</strong> 
+                <a href="{{ course.category.get_absolute_url }}">{{ course.category.name }}</a>
+            </p>
+            <p><strong>Длительность:</strong> {{ course.duration_hours }} часов</p>
+            <p><strong>Стоимость:</strong> {{ course.price }} ₽</p>
+            {% if avg_rating %}
+            <p><strong>Рейтинг:</strong> {{ avg_rating|floatformat:1 }} / 5 ({{ reviews.count }} отзывов)</p>
+            {% endif %}
+        </div>
+        
+        <div class="course-description">
+            <h2>Описание курса</h2>
+            <div class="description-content">
+                {{ course.full_description|linebreaks }}
+            </div>
+        </div>
+        
+        {% if groups %}
+        <div class="course-groups">
+            <h2>Доступные группы</h2>
+            <table class="groups-table">
+                <thead>
+                    <tr>
+                        <th>Группа</th>
+                        <th>Преподаватель</th>
+                        <th>Формат</th>
+                        <th>Период</th>
+                        <th>Мест</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in groups %}
+                    <tr>
+                        <td>{{ group.name }}</td>
+                        <td>{{ group.teacher.get_full_name|default:"Не назначен" }}</td>
+                        <td>{{ group.get_format_display }}</td>
+                        <td>{{ group.start_date }} — {{ group.end_date }}</td>
+                        <td>{{ group.enrollments.count }}/{{ group.max_students }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% if reviews %}
+        <div class="course-reviews">
+            <h2>Отзывы студентов</h2>
+            {% for review in reviews %}
+            <div class="review-item">
+                <div class="review-header">
+                    <span class="author">{{ review.student.get_full_name }}</span>
+                    <span class="rating">★★★★★<span class="rating-value">{{ review.rating }}</span>/5</span>
+                    <span class="date">{{ review.review_date|date:"d.m.Y" }}</span>
+                </div>
+                <p class="review-comment">{{ review.comment }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <p class="back-link">
+            <a href="{% url 'courses-list' %}" class="btn">← Назад к списку курсов</a>
+        </p>
+    </div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    {% if category.description %}
+    <div class="category-description">
+        <p>{{ category.description }}</p>
+    </div>
+    {% endif %}
+    
+    {% if courses %}
+    <div class="courses-section">
+        <h2>Курсы в этой категории</h2>
+        <div class="course-grid">
+            {% for course in courses %}
+            <div class="course-card">
+                <h3><a href="{{ course.get_absolute_url }}">{{ course.title }}</a></h3>
+                <p>{{ course.description|truncatewords:20 }}</p>
+                <p><strong>Стоимость:</strong> {{ course.price }} ₽</p>
+                <p><strong>Длительность:</strong> {{ course.duration_hours }} ч.</p>
+                <a href="{{ course.get_absolute_url }}" class="btn">Подробнее</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <p>В этой категории пока нет курсов.</p>
+    {% endif %}
+    
+    <p class="back-link">
+        <a href="{% url 'categories' %}" class="btn">← Назад к категориям</a>
+    </p>
+{% endblock %}

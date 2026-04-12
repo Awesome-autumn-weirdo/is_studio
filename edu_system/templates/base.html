@@ -1,0 +1,41 @@
+<!-- templates/base.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Студия дополнительного образования{% endblock %}</title>
+    <!-- Подключаем наш CSS файл -->
+    <link rel="stylesheet" href="{% static 'education/css/styles.css' %}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><a href="{% url 'education-home' %}">Студия "Логикум"</a></h1>
+            <nav>
+                <ul>
+                    <li><a href="{% url 'education-home' %}">Главная</a></li>
+                    <li><a href="{% url 'courses-list' %}">Курсы</a></li>
+                    <li><a href="{% url 'categories' %}">Категории</a></li>
+                    <!-- В будущем здесь будут ссылки на профиль, вход и т.д. -->
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="main-content">
+            {% block content %}
+            <!-- Основной контент страницы будет вставлен здесь -->
+            {% endblock %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2025 Студия дополнительного образования. Все права защищены.</p>
+        </div>
+    </footer>
+</body>
+</html>

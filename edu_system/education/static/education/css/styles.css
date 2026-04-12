@@ -1,0 +1,132 @@
+/* education/static/education/css/styles.css */
+
+/* ===== Base ===== */
+body {
+    font-family: "Georgia", "Times New Roman", serif;
+    line-height: 1.7;
+    margin: 0;
+    padding: 0;
+    background-color: #f3efe6; /* aged paper */
+    color: #2f2a24;
+    background-image:
+        radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 6px 6px;
+}
+
+/* ===== Layout ===== */
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+/* ===== Header (retro newspaper bar) ===== */
+header {
+    background: #3a2f2a;
+    color: #f3efe6;
+    padding: 1.2rem 0;
+    margin-bottom: 2.5rem;
+    border-bottom: 4px solid #a78b6a;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+}
+
+header h1 a {
+    color: #f3efe6;
+    text-decoration: none;
+    letter-spacing: 1px;
+    font-weight: 700;
+}
+
+/* ===== Navigation ===== */
+nav ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    gap: 1.2rem;
+    margin-top: 0.8rem;
+}
+
+nav ul li a {
+    color: #e7dccb;
+    text-decoration: none;
+    font-family: "Courier New", monospace;
+    font-size: 0.95rem;
+    border-bottom: 1px dashed transparent;
+    transition: 0.2s ease;
+}
+
+nav ul li a:hover {
+    border-bottom: 1px dashed #e7dccb;
+}
+
+/* ===== Main content (paper card) ===== */
+.main-content {
+    background: #fffaf2;
+    padding: 2rem;
+    border: 1px solid #d6c8b8;
+    box-shadow:
+        6px 6px 0 #c9b8a3,
+        inset 0 0 0 1px #f0e6d8;
+}
+
+/* ===== Grid ===== */
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.8rem;
+    margin-top: 2rem;
+}
+
+/* ===== Cards (old file card / archive style) ===== */
+.course-card {
+    background: #fffdf7;
+    border: 1px solid #d8c9b6;
+    padding: 1.3rem;
+    box-shadow:
+        4px 4px 0 #cbb59a;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.course-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow:
+        6px 6px 0 #bda88d;
+}
+
+.course-card h2 {
+    margin-top: 0;
+    color: #4a3f35;
+    font-family: "Georgia", serif;
+    font-size: 1.2rem;
+}
+
+/* ===== Button (retro stamped look) ===== */
+.btn {
+    display: inline-block;
+    background-color: #4a3f35;
+    color: #f3efe6;
+    padding: 0.55rem 1.1rem;
+    text-decoration: none;
+    border: 1px solid #2f2a24;
+    font-family: "Courier New", monospace;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    box-shadow: 3px 3px 0 #c9b8a3;
+    transition: all 0.15s ease;
+}
+
+.btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0 #bda88d;
+}
+
+/* ===== Footer ===== */
+footer {
+    margin-top: 3rem;
+    text-align: center;
+    color: #6b5e52;
+    font-size: 0.85rem;
+    font-family: "Courier New", monospace;
+    padding: 1.5rem 0;
+    border-top: 1px dashed #c9b8a3;
+}

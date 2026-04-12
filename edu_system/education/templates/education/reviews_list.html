@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    {% if reviews %}
+    <div class="reviews-list">
+        {% for review in reviews %}
+        <div class="review-item">
+            <div class="review-header">
+                <span class="author">{{ review.student.get_full_name }}</span>
+                <span class="course">Курс: <a href="{{ review.course.get_absolute_url }}">{{ review.course.title }}</a></span>
+                <span class="rating">Оценка: {{ review.rating }}/5</span>
+                <span class="date">{{ review.review_date|date:"d.m.Y" }}</span>
+            </div>
+            <p class="review-comment">{{ review.comment }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>Пока нет отзывов.</p>
+    {% endif %}
+    
+    <p class="back-link">
+        <a href="{% url 'education-home' %}" class="btn">← На главную</a>
+    </p>
+{% endblock %}

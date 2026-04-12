@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    {% if teachers %}
+    <div class="teachers-grid">
+        {% for teacher in teachers %}
+        <div class="teacher-card">
+            {% if teacher.photo %}
+            <img src="{{ teacher.photo.url }}" alt="{{ teacher.get_full_name }}" class="teacher-photo">
+            {% endif %}
+            <h3>{{ teacher.get_full_name }}</h3>
+            <p class="specialization"><strong>Специализация:</strong> {{ teacher.specialization }}</p>
+            {% if teacher.bio %}
+            <p class="bio">{{ teacher.bio|truncatewords:30 }}</p>
+            {% endif %}
+            <a href="{% url 'teacher-detail' teacher.id %}" class="btn">Подробнее</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>Информация о преподавателях скоро появится.</p>
+    {% endif %}
+{% endblock %}

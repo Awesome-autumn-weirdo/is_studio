@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ teacher.get_full_name }}</h1>
+    
+    <div class="teacher-detail">
+        {% if teacher.photo %}
+        <img src="{{ teacher.photo.url }}" alt="{{ teacher.get_full_name }}" class="teacher-photo-large">
+        {% endif %}
+        
+        <div class="teacher-info">
+            <p><strong>Специализация:</strong> {{ teacher.specialization }}</p>
+            <p><strong>Телефон:</strong> {{ teacher.phone }}</p>
+            {% if teacher.email %}
+            <p><strong>Email:</strong> <a href="mailto:{{ teacher.email }}">{{ teacher.email }}</a></p>
+            {% endif %}
+        </div>
+        
+        {% if teacher.bio %}
+        <div class="teacher-bio">
+            <h2>О преподавателе</h2>
+            <p>{{ teacher.bio|linebreaks }}</p>
+        </div>
+        {% endif %}
+        
+        {% if groups %}
+        <div class="teacher-groups">
+            <h2>Ведет группы</h2>
+            <ul class="groups-list">
+                {% for group in groups %}
+                <li>
+                    <strong>{{ group.course.title }}</strong> — {{ group.name }} 
+                    ({{ group.get_format_display }}, {{ group.start_date }} — {{ group.end_date }})
+                    <a href="{{ group.course.get_absolute_url }}">Перейти к курсу →</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    
+    <p class="back-link">
+        <a href="{% url 'teachers-list' %}" class="btn">← Назад к списку преподавателей</a>
+    </p>
+{% endblock %}
