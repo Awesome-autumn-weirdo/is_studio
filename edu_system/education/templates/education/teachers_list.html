@@ -3,7 +3,10 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-    <h1>{{ title }}</h1>
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'teacher-create' %}" class="btn btn-success">➕ Добавить преподавателя</a>
+    </div>
     
     {% if teachers %}
     <div class="teachers-grid">
@@ -11,17 +14,21 @@
         <div class="teacher-card">
             {% if teacher.photo %}
             <img src="{{ teacher.photo.url }}" alt="{{ teacher.get_full_name }}" class="teacher-photo">
+            {% else %}
+            <div class="teacher-photo-placeholder">👨‍🏫</div>
             {% endif %}
             <h3>{{ teacher.get_full_name }}</h3>
-            <p class="specialization"><strong>Специализация:</strong> {{ teacher.specialization }}</p>
-            {% if teacher.bio %}
-            <p class="bio">{{ teacher.bio|truncatewords:30 }}</p>
-            {% endif %}
-            <a href="{% url 'teacher-detail' teacher.id %}" class="btn">Подробнее</a>
+            <p class="specialization">{{ teacher.specialization }}</p>
+            <div class="teacher-actions">
+                <a href="{% url 'teacher-detail' teacher.id %}" class="btn">👁️ Просмотр</a>
+                <a href="{% url 'teacher-update' teacher.id %}" class="btn btn-edit">✏️</a>
+                <a href="{% url 'teacher-delete' teacher.id %}" class="btn btn-danger">🗑️</a>
+            </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <p>Информация о преподавателях скоро появится.</p>
+    <p>Преподаватели пока не добавлены.</p>
+    <a href="{% url 'teacher-create' %}" class="btn btn-success">➕ Добавить первого преподавателя</a>
     {% endif %}
 {% endblock %}

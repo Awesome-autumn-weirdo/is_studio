@@ -1,20 +1,33 @@
-<!-- education/templates/education/courses_list.html -->
 {% extends 'base.html' %}
 
-{% block title %}Список курсов{% endblock %}
+{% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-    <h1>Все курсы</h1>
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'course-create' %}" class="btn btn-success">➕ Добавить курс</a>
+    </div>
+    
+    {% if courses %}
     <div class="course-grid">
         {% for course in courses %}
         <div class="course-card">
-            <h3>{{ course.name }}</h3>
+            <h3>
+                <a href="{{ course.get_absolute_url }}">{{ course.title }}</a>
+            </h3>
+            <p class="category">{{ course.category.name }}</p>
             <p>{{ course.description|truncatewords:20 }}</p>
-            <p><strong>Стоимость:</strong> {{ course.price }} руб.</p>
-            <a href="{% url 'course-detail-id' course.id %}" class="btn">Подробнее</a>
+            <p><strong>Стоимость:</strong> {{ course.price }} ₽</p>
+            <div class="course-actions">
+                <a href="{{ course.get_absolute_url }}" class="btn">👁️ Просмотр</a>
+                <a href="{% url 'course-update' course.slug %}" class="btn btn-edit">✏️ Изменить</a>
+                <a href="{% url 'course-delete' course.slug %}" class="btn btn-danger">🗑️ Удалить</a>
+            </div>
         </div>
-        {% empty %}
-        <p>На данный момент курсы не найдены.</p>
         {% endfor %}
     </div>
+    {% else %}
+    <p>Курсы пока не добавлены.</p>
+    <a href="{% url 'course-create' %}" class="btn btn-success">➕ Создать первый курс</a>
+    {% endif %}
 {% endblock %}

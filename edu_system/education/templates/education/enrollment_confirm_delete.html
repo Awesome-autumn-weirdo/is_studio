@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <div class="delete-confirmation">
+        <p>Вы уверены, что хотите отменить запись студента <strong>"{{ enrollment.student.get_full_name }}"</strong> 
+           с курса <strong>"{{ enrollment.group.course.title }}"</strong> (группа {{ enrollment.group.name }})?</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Да, отменить запись</button>
+            <a href="{% url 'student-detail' enrollment.student.id %}" class="btn btn-secondary">Отмена</a>
+        </form>
+    </div>
+{% endblock %}

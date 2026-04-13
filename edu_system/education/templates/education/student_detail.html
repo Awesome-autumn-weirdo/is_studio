@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="student-detail">
+        <!-- Заголовок с действиями -->
+        <div class="page-header">
+            <h1>{{ student.get_full_name }}</h1>
+            <div class="action-buttons">
+                <a href="{% url 'enrollment-create' %}?student={{ student.id }}" class="btn btn-success">📝 Записать на курс</a>
+                <a href="{% url 'students-list' %}" class="btn">← К списку</a>
+            </div>
+        </div>
+        
+        <!-- Основная информация -->
+        <div class="student-info-section">
+            <h2>Основная информация</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Фамилия:</span>
+                    <span class="info-value">{{ student.last_name }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Имя:</span>
+                    <span class="info-value">{{ student.first_name }}</span>
+                </div>
+                {% if student.middle_name %}
+                <div class="info-item">
+                    <span class="info-label">Отчество:</span>
+                    <span class="info-value">{{ student.middle_name }}</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">
+                        <a href="mailto:{{ student.email }}">{{ student.email }}</a>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Телефон:</span>
+                    <span class="info-value">
+                        <a href="tel:{{ student.phone }}">{{ student.phone }}</a>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Дата рождения:</span>
+                    <span class="info-value">{{ student.birth_date|date:"d.m.Y" }} ({{ student.birth_date|timesince }})</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Дата регистрации:</span>
+                    <span class="info-value">{{ student.time_create|date:"d.m.Y H:i" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Текущие курсы -->
+        <div class="student-courses-section">
+            <h2>📚 Записан на курсы</h2>
+            {% if enrollments %}
+            <div class="enrollments-list">
+                {% for enrollment in enrollments %}
+                <div class="enrollment-card {% if not enrollment.is_active %}inactive{% endif %}">
+                    <div class="enrollment-header">
+                        <h3>
+                            <a href="{{ enrollment.group.course.get_absolute_url }}">
+                                {{ enrollment.group.course.title }}
+                            </a>
+                        </h3>
+                        <div class="enrollment-actions">
+                            {% if enrollment.is_active %}
+                            <span class="badge badge-success">Активна</span>
+                            {% else %}
+                            <span class="badge badge-inactive">Завершена</span>
+                            {% endif %}
+                            <form method="post" action="{% url 'enrollment-delete' enrollment.id %}" 
+                                  onsubmit="return confirm('Отменить запись студента с курса?');" 
+                                  style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-small btn-danger">❌ Отменить запись</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="enrollment-details">
+                        <p><strong>Группа:</strong> {{ enrollment.group.name }}</p>
+                        <p><strong>Преподаватель:</strong> 
+                            {% if enrollment.group.teacher %}
+                            <a href="{% url 'teacher-detail' enrollment.group.teacher.id %}">
+                                {{ enrollment.group.teacher.get_full_name }}
+                            </a>
+                            {% else %}
+                            Не назначен
+                            {% endif %}
+                        </p>
+                        <p><strong>Формат:</strong> {{ enrollment.group.get_format_display }}</p>
+                        <p><strong>Период:</strong> {{ enrollment.group.start_date }} — {{ enrollment.group.end_date }}</p>
+                        <p><strong>Дата записи:</strong> {{ enrollment.enrollment_date|date:"d.m.Y" }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>Студент пока не записан ни на один курс.</p>
+                <a href="{% url 'enrollment-create' %}?student={{ student.id }}" class="btn btn-success">
+                    📝 Записать на курс
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Успеваемость -->
+        <div class="student-performance-section">
+            <h2>📊 Успеваемость</h2>
+            {% if performance %}
+            <table class="performance-table">
+                <thead>
+                    <tr>
+                        <th>Курс</th>
+                        <th>Группа</th>
+                        <th>Оценка</th>
+                        <th>Комментарий</th>
+                        <th>Дата</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for perf in performance %}
+                    <tr>
+                        <td>
+                            <a href="{{ perf.group.course.get_absolute_url }}">{{ perf.group.course.title }}</a>
+                        </td>
+                        <td>{{ perf.group.name }}</td>
+                        <td>
+                            <span class="grade grade-{{ perf.grade|lower }}">
+                                {{ perf.grade }}
+                            </span>
+                        </td>
+                        <td>{{ perf.comment|default:"—" }}</td>
+                        <td>{{ perf.date|date:"d.m.Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Средний балл -->
+            {% with avg_grade=performance|length %}
+            <div class="performance-summary">
+                <p><strong>Всего оценок:</strong> {{ performance|length }}</p>
+            </div>
+            {% endwith %}
+            {% else %}
+            <p class="empty-message">Оценки пока не выставлены.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Посещаемость -->
+        <div class="student-attendance-section">
+            <h2>📅 Посещаемость (последние 10 занятий)</h2>
+            {% if attendance %}
+            <table class="attendance-table">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Время</th>
+                        <th>Курс</th>
+                        <th>Тема</th>
+                        <th>Статус</th>
+                        <th>Примечание</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for att in attendance %}
+                    <tr>
+                        <td>{{ att.schedule.date|date:"d.m.Y" }}</td>
+                        <td>{{ att.schedule.time|time:"H:i" }}</td>
+                        <td>
+                            <a href="{{ att.schedule.group.course.get_absolute_url }}">
+                                {{ att.schedule.group.course.title }}
+                            </a>
+                        </td>
+                        <td>{{ att.schedule.topic|default:"—" }}</td>
+                        <td>
+                            <span class="attendance-status status-{{ att.status }}">
+                                {{ att.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ att.note|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Статистика посещаемости -->
+            <div class="attendance-stats">
+                {% with present=attendance|dictsort:"status" %}
+                <div class="attendance-stat">
+                    <span class="stat-label">Присутствовал:</span>
+                    <span class="stat-value">
+                        {{ attendance|length }} / {{ attendance|length }}
+                    </span>
+                </div>
+                {% endwith %}
+            </div>
+            {% else %}
+            <p class="empty-message">Данные о посещаемости отсутствуют.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Отзывы студента -->
+        <div class="student-reviews-section">
+            <h2>💬 Отзывы студента</h2>
+            {% if reviews %}
+            <div class="reviews-list">
+                {% for review in reviews %}
+                <div class="review-card">
+                    <div class="review-header">
+                        <span class="review-course">
+                            <a href="{{ review.course.get_absolute_url }}">{{ review.course.title }}</a>
+                        </span>
+                        <span class="review-rating">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.rating %}
+                                ★
+                                {% else %}
+                                ☆
+                                {% endif %}
+                            {% endfor %}
+                            ({{ review.rating }}/5)
+                        </span>
+                        <span class="review-date">{{ review.review_date|date:"d.m.Y" }}</span>
+                        {% if review.is_approved %}
+                        <span class="badge badge-success">Опубликован</span>
+                        {% else %}
+                        <span class="badge badge-warning">На модерации</span>
+                        {% endif %}
+                    </div>
+                    <p class="review-comment">{{ review.comment }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-message">Студент пока не оставил ни одного отзыва.</p>
+            {% endif %}
+            
+            <div class="add-review">
+                <a href="{% url 'review-create' %}?student={{ student.id }}" class="btn btn-primary">
+                    ✍️ Оставить отзыв
+                </a>
+            </div>
+        </div>
+        
+        <!-- Навигация -->
+        <div class="student-navigation">
+            <a href="{% url 'students-list' %}" class="btn">← Назад к списку студентов</a>
+            <a href="{% url 'education-home' %}" class="btn">🏠 На главную</a>
+        </div>
+    </div>
+{% endblock %}

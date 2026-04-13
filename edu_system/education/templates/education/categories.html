@@ -1,15 +1,32 @@
-<!-- education/templates/education/categories.html -->
 {% extends 'base.html' %}
 
-{% block title %}Категории курсов{% endblock %}
+{% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-    <h1>Категории курсов</h1>
-    <ul>
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'category-create' %}" class="btn btn-success">➕ Добавить категорию</a>
+    </div>
+    
+    {% if categories %}
+    <div class="category-grid">
         {% for category in categories %}
-            <li><a href="#">{{ category.name }}</a></li>
-        {% empty %}
-            <li>Категории пока не добавлены.</li>
+        <div class="category-card">
+            <h3><a href="{{ category.get_absolute_url }}">{{ category.name }}</a></h3>
+            {% if category.description %}
+            <p>{{ category.description|truncatewords:15 }}</p>
+            {% endif %}
+            <p><strong>{{ category.course_count }}</strong> курсов</p>
+            <div class="category-actions">
+                <a href="{{ category.get_absolute_url }}" class="btn">👁️ Просмотр</a>
+                <a href="{% url 'category-update' category.slug %}" class="btn btn-edit">✏️</a>
+                <a href="{% url 'category-delete' category.slug %}" class="btn btn-danger">🗑️</a>
+            </div>
+        </div>
         {% endfor %}
-    </ul>
+    </div>
+    {% else %}
+    <p>Категории пока не добавлены.</p>
+    <a href="{% url 'category-create' %}" class="btn btn-success">➕ Создать первую категорию</a>
+    {% endif %}
 {% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'student-register' %}" class="btn btn-success">➕ Зарегистрировать студента</a>
+    </div>
+    
+    {% if students %}
+    <table class="students-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>ФИО</th>
+                <th>Email</th>
+                <th>Телефон</th>
+                <th>Дата регистрации</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>{{ student.id }}</td>
+                <td>{{ student.get_full_name }}</td>
+                <td>{{ student.email }}</td>
+                <td>{{ student.phone }}</td>
+                <td>{{ student.time_create|date:"d.m.Y" }}</td>
+                <td class="actions">
+                    <a href="{% url 'student-detail' student.id %}" class="btn btn-small">👁️ Просмотр</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Студенты пока не зарегистрированы.</p>
+    <a href="{% url 'student-register' %}" class="btn btn-success">➕ Зарегистрировать первого студента</a>
+    {% endif %}
+{% endblock %}

@@ -4,23 +4,52 @@
 
 {% block content %}
     <div class="course-detail">
-        <h1>{{ course.title }}</h1>
+        <div class="page-header">
+            <h1>{{ course.title }}</h1>
+            <div class="action-buttons">
+                <a href="{% url 'course-update' course.slug %}" class="btn btn-edit">✏️ Редактировать</a>
+                <a href="{% url 'course-delete' course.slug %}" class="btn btn-danger">🗑️ Удалить</a>
+            </div>
+        </div>
         
         <div class="course-meta">
             <p><strong>Категория:</strong> 
                 <a href="{{ course.category.get_absolute_url }}">{{ course.category.name }}</a>
             </p>
+            <p><strong>Статус:</strong> 
+                {% if course.status == 1 %}
+                <span class="badge published">Опубликован</span>
+                {% else %}
+                <span class="badge draft">Черновик</span>
+                {% endif %}
+            </p>
             <p><strong>Длительность:</strong> {{ course.duration_hours }} часов</p>
             <p><strong>Стоимость:</strong> {{ course.price }} ₽</p>
+            <p><strong>Дата создания:</strong> {{ course.time_create|date:"d.m.Y" }}</p>
+            {% if course.time_update != course.time_create %}
+            <p><strong>Последнее обновление:</strong> {{ course.time_update|date:"d.m.Y" }}</p>
+            {% endif %}
             {% if avg_rating %}
-            <p><strong>Рейтинг:</strong> {{ avg_rating|floatformat:1 }} / 5 ({{ reviews.count }} отзывов)</p>
+            <p><strong>Рейтинг:</strong> 
+                <span class="rating-display">
+                    {% for i in "12345"|make_list %}
+                        {% if forloop.counter <= avg_rating|floatformat:0|add:"0" %}
+                            ★
+                        {% else %}
+                            ☆
+                        {% endif %}
+                    {% endfor %}
+                    {{ avg_rating|floatformat:1 }} / 5 ({{ reviews.count }} 
+                    {{ reviews.count|pluralize:"отзыв,отзыва,отзывов" }})
+                </span>
+            </p>
             {% endif %}
         </div>
         
         <div class="course-description">
             <h2>Описание курса</h2>
             <div class="description-content">
-                {{ course.full_description|linebreaks }}
+                {{ course.full_description|default:course.description|linebreaks }}
             </div>
         </div>
         
@@ -41,35 +70,82 @@
                     {% for group in groups %}
                     <tr>
                         <td>{{ group.name }}</td>
-                        <td>{{ group.teacher.get_full_name|default:"Не назначен" }}</td>
-                        <td>{{ group.get_format_display }}</td>
-                        <td>{{ group.start_date }} — {{ group.end_date }}</td>
-                        <td>{{ group.enrollments.count }}/{{ group.max_students }}</td>
+                        <td>
+                            {% if group.teacher %}
+                            <a href="{% url 'teacher-detail' group.teacher.id %}">
+                                {{ group.teacher.get_full_name }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">Не назначен</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="format-badge format-{{ group.format }}">
+                                {{ group.get_format_display }}
+                            </span>
+                        </td>
+                        <td>{{ group.start_date|date:"d.m.Y" }} — {{ group.end_date|date:"d.m.Y" }}</td>
+                        <td>
+                            {% with enrolled=group.enrollments.count %}
+                            {% if enrolled >= group.max_students %}
+                            <span class="text-danger">{{ enrolled }}/{{ group.max_students }} (заполнена)</span>
+                            {% elif enrolled >= group.max_students|add:"-2" %}
+                            <span class="text-warning">{{ enrolled }}/{{ group.max_students }} (мало мест)</span>
+                            {% else %}
+                            <span class="text-success">{{ enrolled }}/{{ group.max_students }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <div class="course-groups">
+            <h2>Доступные группы</h2>
+            <p class="text-muted">В данный момент нет активных групп для этого курса.</p>
+        </div>
         {% endif %}
         
         {% if reviews %}
         <div class="course-reviews">
-            <h2>Отзывы студентов</h2>
+            <div class="reviews-header">
+                <h2>Отзывы студентов</h2>
+                <a href="{% url 'review-create' %}" class="btn btn-small">✏️ Оставить отзыв</a>
+            </div>
             {% for review in reviews %}
             <div class="review-item">
                 <div class="review-header">
                     <span class="author">{{ review.student.get_full_name }}</span>
-                    <span class="rating">★★★★★<span class="rating-value">{{ review.rating }}</span>/5</span>
+                    <span class="rating">
+                        {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= review.rating %}
+                                ★
+                            {% else %}
+                                ☆
+                            {% endif %}
+                        {% endfor %}
+                        <span class="rating-value">{{ review.rating }}/5</span>
+                    </span>
                     <span class="date">{{ review.review_date|date:"d.m.Y" }}</span>
                 </div>
                 <p class="review-comment">{{ review.comment }}</p>
             </div>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="course-reviews">
+            <h2>Отзывы студентов</h2>
+            <p class="text-muted">Пока нет отзывов об этом курсе.</p>
+            <a href="{% url 'review-create' %}" class="btn">✏️ Оставить первый отзыв</a>
+        </div>
         {% endif %}
         
-        <p class="back-link">
-            <a href="{% url 'courses-list' %}" class="btn">← Назад к списку курсов</a>
-        </p>
+        <div class="course-footer">
+            <p class="back-link">
+                <a href="{% url 'courses-list' %}" class="btn">← Назад к списку курсов</a>
+            </p>
+        </div>
     </div>
 {% endblock %}

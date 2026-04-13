@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <!-- Форма фильтрации -->
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="filter-grid">
+                {% for field in form %}
+                <div class="filter-field">
+                    <label>{{ field.label }}</label>
+                    {{ field }}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">Применить</button>
+                <a href="{% url 'courses-filtered' %}" class="btn btn-secondary">Сбросить</a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Статистика -->
+    {% if stats %}
+    <div class="stats-section">
+        <h2>Статистика</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Всего курсов:</span>
+                <span class="stat-value">{{ stats.total }}</span>
+            </div>
+            {% if stats.avg_price %}
+            <div class="stat-card">
+                <span class="stat-label">Средняя цена:</span>
+                <span class="stat-value">{{ stats.avg_price|floatformat:0 }} ₽</span>
+            </div>
+            {% endif %}
+            {% if stats.min_price %}
+            <div class="stat-card">
+                <span class="stat-label">Мин. цена:</span>
+                <span class="stat-value">{{ stats.min_price|floatformat:0 }} ₽</span>
+            </div>
+            {% endif %}
+            {% if stats.max_price %}
+            <div class="stat-card">
+                <span class="stat-label">Макс. цена:</span>
+                <span class="stat-value">{{ stats.max_price|floatformat:0 }} ₽</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Список курсов -->
+    <div class="courses-section">
+        <h2>Найдено курсов: {{ courses.count }}</h2>
+        
+        {% if courses %}
+        <div class="course-grid">
+            {% for course in courses %}
+            <div class="course-card">
+                <h3>
+                    <a href="{{ course.get_absolute_url }}">{{ course.title }}</a>
+                    {% if course.status == 0 %}
+                    <span class="badge draft">Черновик</span>
+                    {% endif %}
+                </h3>
+                <p class="category">{{ course.category.name }}</p>
+                <p>{{ course.description|truncatewords:20 }}</p>
+                <p><strong>Стоимость:</strong> {{ course.price }} ₽</p>
+                <p><strong>Длительность:</strong> {{ course.duration_hours }} ч.</p>
+                <div class="course-actions">
+                    <a href="{{ course.get_absolute_url }}" class="btn">Подробнее</a>
+                    <a href="{% url 'course-update' course.slug %}" class="btn btn-edit">Редактировать</a>
+                    <a href="{% url 'course-delete' course.slug %}" class="btn btn-danger">Удалить</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>Курсы не найдены. Попробуйте изменить параметры фильтрации.</p>
+        {% endif %}
+    </div>
+    
+    <p class="back-link">
+        <a href="{% url 'course-create' %}" class="btn btn-success">+ Создать новый курс</a>
+    </p>
+{% endblock %}

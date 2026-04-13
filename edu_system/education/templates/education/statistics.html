@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <div class="statistics-dashboard">
+        <!-- Общая статистика -->
+        <div class="stats-section">
+            <h2>Общая статистика</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Студентов</span>
+                    <span class="stat-value">{{ stats.total_students }}</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Преподавателей</span>
+                    <span class="stat-value">{{ stats.total_teachers }}</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Курсов</span>
+                    <span class="stat-value">{{ stats.total_courses }}</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Групп</span>
+                    <span class="stat-value">{{ stats.total_groups }}</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Записей на курсы</span>
+                    <span class="stat-value">{{ stats.total_enrollments }}</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Отзывов</span>
+                    <span class="stat-value">{{ stats.total_reviews }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Средние показатели -->
+        <div class="stats-section">
+            <h2>Средние показатели</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Средняя цена курса</span>
+                    <span class="stat-value">{{ stats.avg_course_price|floatformat:0 }} ₽</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Средний рейтинг</span>
+                    <span class="stat-value">{{ stats.avg_rating|floatformat:1 }} / 5</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Популярные курсы -->
+        {% if popular_courses %}
+        <div class="stats-section">
+            <h2>Популярные курсы</h2>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Курс</th>
+                        <th>Студентов</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in popular_courses %}
+                    <tr>
+                        <td><a href="{{ course.get_absolute_url }}">{{ course.title }}</a></td>
+                        <td>{{ course.student_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        <!-- Популярные категории -->
+        {% if popular_categories %}
+        <div class="stats-section">
+            <h2>Популярные категории</h2>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Категория</th>
+                        <th>Курсов</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in popular_categories %}
+                    <tr>
+                        <td><a href="{{ category.get_absolute_url }}">{{ category.name }}</a></td>
+                        <td>{{ category.course_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        <!-- Активные преподаватели -->
+        {% if active_teachers %}
+        <div class="stats-section">
+            <h2>Самые активные преподаватели</h2>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Преподаватель</th>
+                        <th>Групп</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in active_teachers %}
+                    <tr>
+                        <td><a href="{% url 'teacher-detail' teacher.id %}">{{ teacher.get_full_name }}</a></td>
+                        <td>{{ teacher.group_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}
