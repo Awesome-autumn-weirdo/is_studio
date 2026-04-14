@@ -28,6 +28,13 @@ urlpatterns = [
     path('teacher/<int:teacher_id>/update/', views.teacher_update, name='teacher-update'),
     path('teacher/<int:teacher_id>/delete/', views.teacher_delete, name='teacher-delete'),
     
+    # Группы
+    path('groups/', views.groups_list, name='groups-list'),
+    path('group/create/', views.group_create, name='group-create'),
+    path('group/<int:group_id>/', views.group_detail, name='group-detail'),
+    path('group/<int:group_id>/update/', views.group_update, name='group-update'),
+    path('group/<int:group_id>/delete/', views.group_delete, name='group-delete'),
+
     # Студенты
     path('students/', views.students_list, name='students-list'),
     path('student/register/', views.student_register, name='student-register'),

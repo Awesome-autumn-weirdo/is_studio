@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="group-detail">
+        <!-- Заголовок с действиями -->
+        <div class="page-header">
+            <h1>{{ group.name }}</h1>
+            <div class="action-buttons">
+                <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-success">📝 Записать студента</a>
+                <a href="{% url 'group-update' group.id %}" class="btn btn-edit">✏️ Редактировать</a>
+                <a href="{% url 'group-delete' group.id %}" class="btn btn-danger">🗑️ Удалить</a>
+            </div>
+        </div>
+        
+        <!-- Основная информация о группе -->
+        <div class="group-info-section">
+            <h2>Информация о группе</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Курс:</span>
+                    <span class="info-value">
+                        <a href="{{ group.course.get_absolute_url }}">{{ group.course.title }}</a>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Преподаватель:</span>
+                    <span class="info-value">
+                        {% if group.teacher %}
+                        <a href="{% url 'teacher-detail' group.teacher.id %}">{{ group.teacher.get_full_name }}</a>
+                        {% else %}
+                        <span class="text-muted">Не назначен</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Формат обучения:</span>
+                    <span class="info-value">{{ group.get_format_display }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Период обучения:</span>
+                    <span class="info-value">{{ group.start_date|date:"d.m.Y" }} — {{ group.end_date|date:"d.m.Y" }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Максимум студентов:</span>
+                    <span class="info-value">{{ group.max_students }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Статус:</span>
+                    <span class="info-value">
+                        {% if group.is_active %}
+                        <span class="badge badge-success">Активна</span>
+                        {% else %}
+                        <span class="badge badge-inactive">Неактивна</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Список студентов -->
+        <div class="group-students-section">
+            <h2>👥 Студенты группы ({{ enrollments|length }} / {{ group.max_students }})</h2>
+            
+            {% if enrollments %}
+            <table class="students-table">
+                <thead>
+                    <tr>
+                        <th>ФИО</th>
+                        <th>Email</th>
+                        <th>Телефон</th>
+                        <th>Дата записи</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in enrollments %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'student-detail' enrollment.student.id %}">
+                                {{ enrollment.student.get_full_name }}
+                            </a>
+                        </td>
+                        <td>{{ enrollment.student.email }}</td>
+                        <td>{{ enrollment.student.phone }}</td>
+                        <td>{{ enrollment.enrollment_date|date:"d.m.Y" }}</td>
+                        <td>
+                            {% if enrollment.is_active %}
+                            <span class="badge badge-success">Активна</span>
+                            {% else %}
+                            <span class="badge badge-inactive">Завершена</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions">
+                            <form method="post" action="{% url 'enrollment-delete' enrollment.id %}" 
+                                  onsubmit="return confirm('Отменить запись студента?');" 
+                                  style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-small btn-danger">❌ Отменить</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>В этой группе пока нет студентов.</p>
+                <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-success">
+                    📝 Записать первого студента
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Расписание -->
+        <div class="group-schedule-section">
+            <h2>📅 Расписание занятий</h2>
+            
+            {% if schedule %}
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Время</th>
+                        <th>Аудитория</th>
+                        <th>Тема</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lesson in schedule %}
+                    <tr>
+                        <td>{{ lesson.date|date:"d.m.Y" }}</td>
+                        <td>{{ lesson.time|time:"H:i" }}</td>
+                        <td>{{ lesson.classroom }}</td>
+                        <td>{{ lesson.topic|default:"—" }}</td>
+                        <td class="actions">
+                            <a href="#" class="btn btn-small">📋 Посещаемость</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-message">Расписание пока не составлено.</p>
+            {% endif %}
+            
+            <div class="add-schedule">
+                <a href="#" class="btn btn-primary">➕ Добавить занятие</a>
+            </div>
+        </div>
+        
+        <!-- Успеваемость -->
+        <div class="group-performance-section">
+            <h2>📊 Успеваемость</h2>
+            
+            {% if performance %}
+            <table class="performance-table">
+                <thead>
+                    <tr>
+                        <th>Студент</th>
+                        <th>Оценка</th>
+                        <th>Комментарий</th>
+                        <th>Дата</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for perf in performance %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'student-detail' perf.student.id %}">
+                                {{ perf.student.get_full_name }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="grade">{{ perf.grade }}</span>
+                        </td>
+                        <td>{{ perf.comment|default:"—" }}</td>
+                        <td>{{ perf.date|date:"d.m.Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-message">Оценки пока не выставлены.</p>
+            {% endif %}
+            
+            <div class="add-performance">
+                <a href="#" class="btn btn-primary">➕ Выставить оценку</a>
+            </div>
+        </div>
+        
+        <!-- Навигация -->
+        <div class="group-navigation">
+            <a href="{% url 'course-detail-slug' group.course.slug %}" class="btn">← К курсу</a>
+            <a href="{% url 'groups-list' %}" class="btn">📋 Все группы</a>
+        </div>
+    </div>
+{% endblock %}

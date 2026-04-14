@@ -7,6 +7,7 @@
         <div class="page-header">
             <h1>{{ course.title }}</h1>
             <div class="action-buttons">
+                <a href="{% url 'group-create' %}?course={{ course.id }}" class="btn btn-success">➕ Создать группу</a>
                 <a href="{% url 'course-update' course.slug %}" class="btn btn-edit">✏️ Редактировать</a>
                 <a href="{% url 'course-delete' course.slug %}" class="btn btn-danger">🗑️ Удалить</a>
             </div>
@@ -55,7 +56,7 @@
         
         {% if groups %}
         <div class="course-groups">
-            <h2>Доступные группы</h2>
+            <h2>Группы курса</h2>
             <table class="groups-table">
                 <thead>
                     <tr>
@@ -64,37 +65,21 @@
                         <th>Формат</th>
                         <th>Период</th>
                         <th>Мест</th>
+                        <th>Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for group in groups %}
                     <tr>
                         <td>{{ group.name }}</td>
-                        <td>
-                            {% if group.teacher %}
-                            <a href="{% url 'teacher-detail' group.teacher.id %}">
-                                {{ group.teacher.get_full_name }}
-                            </a>
-                            {% else %}
-                            <span class="text-muted">Не назначен</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="format-badge format-{{ group.format }}">
-                                {{ group.get_format_display }}
-                            </span>
-                        </td>
-                        <td>{{ group.start_date|date:"d.m.Y" }} — {{ group.end_date|date:"d.m.Y" }}</td>
-                        <td>
-                            {% with enrolled=group.enrollments.count %}
-                            {% if enrolled >= group.max_students %}
-                            <span class="text-danger">{{ enrolled }}/{{ group.max_students }} (заполнена)</span>
-                            {% elif enrolled >= group.max_students|add:"-2" %}
-                            <span class="text-warning">{{ enrolled }}/{{ group.max_students }} (мало мест)</span>
-                            {% else %}
-                            <span class="text-success">{{ enrolled }}/{{ group.max_students }}</span>
-                            {% endif %}
-                            {% endwith %}
+                        <td>{{ group.teacher.get_full_name|default:"Не назначен" }}</td>
+                        <td>{{ group.get_format_display }}</td>
+                        <td>{{ group.start_date }} — {{ group.end_date }}</td>
+                        <td>{{ group.enrollments.count }}/{{ group.max_students }}</td>
+                        <td class="actions">
+                            <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-small">📝 Записать</a>
+                            <a href="{% url 'group-update' group.id %}" class="btn btn-small btn-edit">✏️</a>
+                            <a href="{% url 'group-delete' group.id %}" class="btn btn-small btn-danger">🗑️</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -102,9 +87,9 @@
             </table>
         </div>
         {% else %}
-        <div class="course-groups">
-            <h2>Доступные группы</h2>
-            <p class="text-muted">В данный момент нет активных групп для этого курса.</p>
+        <div class="empty-state">
+            <p>Для этого курса пока нет групп.</p>
+            <a href="{% url 'group-create' %}?course={{ course.id }}" class="btn btn-success">➕ Создать первую группу</a>
         </div>
         {% endif %}
         

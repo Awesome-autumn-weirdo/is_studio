@@ -466,6 +466,111 @@ def teacher_delete(request, teacher_id):
     }
     return render(request, 'education/teacher_confirm_delete.html', data)
 
+# ========== Группы ==========
+
+def group_create(request):
+    """Создание новой группы"""
+    initial = {}
+    course_id = request.GET.get('course')
+    if course_id:
+        try:
+            initial['course'] = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            pass
+    
+    if request.method == 'POST':
+        form = GroupForm(request.POST)
+        if form.is_valid():
+            group = form.save()
+            messages.success(request, f'Группа "{group.name}" успешно создана!')
+            return redirect('course-detail-slug', course_slug=group.course.slug)
+    else:
+        form = GroupForm(initial=initial)
+    
+    data = {
+        'title': 'Создание новой группы',
+        'form': form,
+    }
+    return render(request, 'education/group_form.html', data)
+
+
+def group_update(request, group_id):
+    """Редактирование группы"""
+    group = get_object_or_404(Group, id=group_id)
+    
+    if request.method == 'POST':
+        form = GroupForm(request.POST, instance=group)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Группа "{group.name}" успешно обновлена!')
+            return redirect('course-detail-slug', course_slug=group.course.slug)
+    else:
+        form = GroupForm(instance=group)
+    
+    data = {
+        'title': f'Редактирование группы: {group.name}',
+        'form': form,
+        'group': group,
+    }
+    return render(request, 'education/group_form.html', data)
+
+
+def group_delete(request, group_id):
+    """Удаление группы"""
+    group = get_object_or_404(Group, id=group_id)
+    course_slug = group.course.slug
+    
+    if request.method == 'POST':
+        name = group.name
+        group.delete()
+        messages.success(request, f'Группа "{name}" успешно удалена!')
+        return redirect('course-detail-slug', course_slug=course_slug)
+    
+    data = {
+        'title': f'Удаление группы: {group.name}',
+        'group': group,
+    }
+    return render(request, 'education/group_confirm_delete.html', data)
+
+
+def groups_list(request):
+    """Список всех групп"""
+    groups = Group.objects.select_related('course', 'teacher').all().order_by('-start_date')
+    
+    # Статистика
+    active_groups = groups.filter(is_active=True)
+    
+    data = {
+        'title': 'Список групп',
+        'groups': groups,
+        'active_count': active_groups.count(),
+        'total_count': groups.count(),
+    }
+    return render(request, 'education/groups_list.html', data)
+
+
+def group_detail(request, group_id):
+    """Детальная информация о группе"""
+    group = get_object_or_404(Group.objects.select_related('course', 'teacher'), id=group_id)
+    
+    # Студенты в группе
+    enrollments = group.enrollments.select_related('student').all()
+    
+    # Расписание группы
+    schedule = group.schedule.all().order_by('date', 'time')
+    
+    # Успеваемость студентов группы
+    performance = group.performance.select_related('student').all()
+    
+    data = {
+        'title': f'Группа: {group.name}',
+        'group': group,
+        'enrollments': enrollments,
+        'schedule': schedule,
+        'performance': performance,
+    }
+    return render(request, 'education/group_detail.html', data)
+
 
 # ========== Запись на курсы ==========
 

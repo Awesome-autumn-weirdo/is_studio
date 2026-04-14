@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <div class="delete-confirmation">
+        <p>Вы уверены, что хотите удалить группу <strong>"{{ group.name }}"</strong> курса <strong>"{{ group.course.title }}"</strong>?</p>
+        <p class="warning">Все записи студентов в эту группу также будут удалены!</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Да, удалить</button>
+            <a href="{% url 'course-detail-slug' group.course.slug %}" class="btn btn-secondary">Отмена</a>
+        </form>
+    </div>
+{% endblock %}

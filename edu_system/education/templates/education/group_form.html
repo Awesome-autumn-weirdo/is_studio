@@ -5,7 +5,7 @@
 {% block content %}
     <h1>{{ title }}</h1>
     
-    <form method="post" class="enrollment-form">
+    <form method="post" class="group-form">
         {% csrf_token %}
         
         {% for field in form %}
@@ -22,12 +22,8 @@
         {% endfor %}
         
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Записать</button>
-            <a href="{% url 'students-list' %}" class="btn btn-secondary">Отмена</a>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a href="{% url 'courses-list' %}" class="btn btn-secondary">Отмена</a>
         </div>
     </form>
-    
-    <div class="help-info">
-        <p>💡 <strong>Подсказка:</strong> Если нужной группы нет в списке, сначала <a href="{% url 'group-create' %}">создайте группу</a> для курса.</p>
-    </div>
 {% endblock %}
