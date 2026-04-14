@@ -2,6 +2,22 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.urls import reverse
 
+from django.core.validators import FileExtensionValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
+import os
+from PIL import Image
+from io import BytesIO
+from django.core.files.base import ContentFile
+import sys
+
+
+def validate_image_size(value):
+    """Проверка размера файла (максимум 5 МБ)"""
+    filesize = value.size
+    max_size = 5 * 1024 * 1024  # 5 МБ в байтах
+    
+    if filesize > max_size:
+        raise ValidationError(f'Максимальный размер файла 5 МБ. Ваш файл: {filesize / (1024*1024):.1f} МБ')
 
 class Teacher(models.Model):
     """Преподаватели"""
@@ -10,10 +26,20 @@ class Teacher(models.Model):
     middle_name = models.CharField(max_length=50, blank=True, verbose_name="Отчество")
     specialization = models.CharField(max_length=100, verbose_name="Специализация")
     phone = models.CharField(max_length=20, verbose_name="Телефон")
-    email = models.EmailField(max_length=100, blank=True, verbose_name="Email")  # Добавим email
-    bio = models.TextField(blank=True, verbose_name="Биография")  # Добавим биографию
-    photo = models.ImageField(upload_to='teachers/%Y/%m/', blank=True, null=True, verbose_name="Фото")
-    is_active = models.BooleanField(default=True, verbose_name="Активен")  # Добавим статус
+    email = models.EmailField(max_length=100, blank=True, verbose_name="Email")
+    bio = models.TextField(blank=True, verbose_name="Биография")
+    photo = models.ImageField(
+        upload_to='teachers/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name="Фото",
+        validators=[
+            FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'gif']),
+            validate_image_size
+        ],
+        help_text="Поддерживаются форматы: JPG, PNG, GIF. Максимальный размер: 5 МБ"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
 
     class Meta:
         db_table = 'teachers'
@@ -30,6 +56,45 @@ class Teacher(models.Model):
         if self.middle_name:
             parts.append(self.middle_name)
         return ' '.join(parts)
+    
+    def save(self, *args, **kwargs):
+        """Переопределяем save для сжатия и ресайза изображения"""
+        if self.photo:
+            # Открываем изображение
+            img = Image.open(self.photo)
+            
+            # Определяем максимальный размер
+            max_width = 400
+            max_height = 400
+            
+            # Изменяем размер, если изображение больше максимального
+            if img.width > max_width or img.height > max_height:
+                output_size = (max_width, max_height)
+                img.thumbnail(output_size, Image.Resampling.LANCZOS)
+                
+                # Сохраняем сжатое изображение в BytesIO
+                output = BytesIO()
+                
+                # Определяем формат
+                if img.format == 'PNG':
+                    img.save(output, format='PNG', optimize=True, quality=85)
+                elif img.format == 'GIF':
+                    img.save(output, format='GIF', optimize=True)
+                else:
+                    # Для JPEG и других форматов
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        img = img.convert('RGB')
+                    img.save(output, format='JPEG', optimize=True, quality=85)
+                
+                output.seek(0)
+                
+                # Заменяем оригинальное изображение сжатым
+                self.photo = ContentFile(
+                    output.read(),
+                    name=self.photo.name
+                )
+        
+        super().save(*args, **kwargs)
 
 
 class Category(models.Model):

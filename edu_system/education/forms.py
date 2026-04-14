@@ -6,6 +6,9 @@ from .models import (
 )
 from datetime import date
 
+from django.core.exceptions import ValidationError
+
+
 class CourseForm(forms.ModelForm):
     """Форма для создания и редактирования курсов"""
     class Meta:
@@ -65,6 +68,23 @@ class TeacherForm(forms.ModelForm):
             'photo': 'Фото',
             'is_active': 'Активен',
         }
+
+        def clean_photo(self):
+            """Проверка размера фото в форме"""
+            photo = self.cleaned_data.get('photo')
+            
+            if photo:
+                # Проверка размера (5 МБ)
+                if photo.size > 5 * 1024 * 1024:
+                    raise ValidationError('Размер файла не должен превышать 5 МБ')
+                
+                # Проверка расширения
+                allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
+                ext = str(photo.name).lower()
+                if not any(ext.endswith(ext_allowed) for ext_allowed in allowed_extensions):
+                    raise ValidationError('Поддерживаются только форматы: JPG, PNG, GIF')
+            
+            return photo
 
 
 class StudentForm(forms.ModelForm):
