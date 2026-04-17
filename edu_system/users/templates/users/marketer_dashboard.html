@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'course-create' %}" class="btn btn-success">➕ Создать курс</a>
+    </div>
+    
+    <!-- Статистика -->
+    <div class="stats-section">
+        <h2>Общая статистика</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Опубликовано курсов</span>
+                <span class="stat-value">{{ published_courses }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Черновиков</span>
+                <span class="stat-value">{{ draft_courses }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Отзывов на модерации</span>
+                <span class="stat-value">{{ pending_reviews }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Популярные курсы -->
+    {% if popular_courses %}
+    <div class="stats-section">
+        <h2>📊 Популярные курсы</h2>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Курс</th>
+                    <th>Записей</th>
+                    <th>Рейтинг</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for course in popular_courses %}
+                <tr>
+                    <td>
+                        <a href="{{ course.get_absolute_url }}">{{ course.title }}</a>
+                        {% if course.status == 0 %}
+                        <span class="badge draft">Черновик</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ course.enrollment_count|default:0 }}</td>
+                    <td>
+                        {% if course.avg_rating %}
+                        {{ course.avg_rating|floatformat:1 }} / 5
+                        {% else %}
+                        Нет оценок
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{% url 'course-update' course.slug %}" class="btn btn-small btn-edit">✏️</a>
+                        <a href="{% url 'course-detail-slug' course.slug %}" class="btn btn-small">👁️</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Последние отзывы -->
+    {% if recent_reviews %}
+    <div class="stats-section">
+        <h2>💬 Последние отзывы</h2>
+        <div class="reviews-list">
+            {% for review in recent_reviews %}
+            <div class="review-card">
+                <div class="review-header">
+                    <span class="review-course">
+                        <a href="{{ review.course.get_absolute_url }}">{{ review.course.title }}</a>
+                    </span>
+                    <span class="review-rating">Оценка: {{ review.rating }}/5</span>
+                    <span class="review-date">{{ review.review_date|date:"d.m.Y H:i" }}</span>
+                    {% if review.is_approved %}
+                    <span class="badge badge-success">Одобрен</span>
+                    {% else %}
+                    <span class="badge badge-warning">На модерации</span>
+                    {% endif %}
+                </div>
+                <p class="review-author"><strong>{{ review.student.get_full_name }}</strong></p>
+                <p class="review-comment">{{ review.comment }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        <p class="all-link">
+            <a href="{% url 'reviews-list' %}">Все отзывы →</a>
+        </p>
+    </div>
+    {% endif %}
+{% endblock %}

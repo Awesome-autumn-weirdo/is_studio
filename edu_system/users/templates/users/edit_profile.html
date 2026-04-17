@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <form method="post" enctype="multipart/form-data" class="profile-form">
+        {% csrf_token %}
+        
+        <!-- Основная информация пользователя -->
+        <div class="form-section">
+            <h2>Основная информация</h2>
+            
+            {% for field in user_form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                <small class="help-text">{{ field.help_text }}</small>
+                {% endif %}
+                {% if field.errors %}
+                <div class="error-list">{{ field.errors }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Дополнительная информация профиля -->
+        {% if profile_form %}
+        <div class="form-section">
+            <h2>Дополнительная информация</h2>
+            
+            {% for field in profile_form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                <small class="help-text">{{ field.help_text }}</small>
+                {% endif %}
+                {% if field.errors %}
+                <div class="error-list">{{ field.errors }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+            <a href="{% url 'profile' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+{% endblock %}

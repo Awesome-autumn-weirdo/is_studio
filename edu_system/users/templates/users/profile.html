@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'edit-profile' %}" class="btn btn-edit">✏️ Редактировать профиль</a>
+    </div>
+    
+    <div class="profile-container">
+        <!-- Информация о пользователе -->
+        <div class="profile-section">
+            <h2>👤 Основная информация</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Логин:</span>
+                    <span class="info-value">{{ user.username }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Имя:</span>
+                    <span class="info-value">{{ user.first_name }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Фамилия:</span>
+                    <span class="info-value">{{ user.last_name }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ user.email }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Роль:</span>
+                    <span class="info-value">
+                        <span class="badge badge-success">{{ user_role }}</span>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Дата регистрации:</span>
+                    <span class="info-value">{{ user.date_joined|date:"d.m.Y" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Информация о профиле студента -->
+        {% if profile_type == 'student' %}
+        <div class="profile-section">
+            <h2>📚 Профиль студента</h2>
+            <div class="info-grid">
+                {% if profile.middle_name %}
+                <div class="info-item">
+                    <span class="info-label">Отчество:</span>
+                    <span class="info-value">{{ profile.middle_name }}</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">Телефон:</span>
+                    <span class="info-value">{{ profile.phone }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Дата рождения:</span>
+                    <span class="info-value">{{ profile.birth_date|date:"d.m.Y" }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Дата регистрации в студии:</span>
+                    <span class="info-value">{{ profile.time_create|date:"d.m.Y" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Информация о профиле преподавателя -->
+        {% elif profile_type == 'teacher' %}
+        <div class="profile-section">
+            <h2>👨‍🏫 Профиль преподавателя</h2>
+            
+            {% if profile.photo %}
+            <div class="teacher-profile-photo">
+                <img src="{{ profile.photo.url }}" alt="{{ profile.get_full_name }}" class="teacher-photo-large">
+            </div>
+            {% endif %}
+            
+            <div class="info-grid">
+                {% if profile.middle_name %}
+                <div class="info-item">
+                    <span class="info-label">Отчество:</span>
+                    <span class="info-value">{{ profile.middle_name }}</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">Специализация:</span>
+                    <span class="info-value">{{ profile.specialization }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Телефон:</span>
+                    <span class="info-value">{{ profile.phone }}</span>
+                </div>
+                {% if profile.email %}
+                <div class="info-item">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ profile.email }}</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">Статус:</span>
+                    <span class="info-value">
+                        {% if profile.is_active %}
+                        <span class="badge badge-success">Активен</span>
+                        {% else %}
+                        <span class="badge badge-inactive">Неактивен</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            {% if profile.bio %}
+            <div class="profile-bio">
+                <h3>Биография</h3>
+                <p>{{ profile.bio|linebreaks }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Навигация -->
+        <div class="profile-navigation">
+            <a href="{% url 'dashboard' %}" class="btn btn-primary">Перейти в личный кабинет</a>
+            <a href="{% url 'education-home' %}" class="btn btn-secondary">На главную</a>
+        </div>
+    </div>
+{% endblock %}

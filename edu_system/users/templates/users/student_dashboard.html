@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'profile' %}" class="btn">👤 Мой профиль</a>
+    </div>
+    
+    <!-- Приветствие -->
+    <div class="welcome-section">
+        <h2>Добро пожаловать, {{ student.first_name }}!</h2>
+        <p>Здесь вы можете просматривать свои курсы, расписание и успеваемость.</p>
+    </div>
+    
+    <!-- Мои курсы -->
+    <div class="dashboard-section">
+        <h2>📚 Мои курсы</h2>
+        
+        {% if enrollments %}
+        <div class="enrollments-list">
+            {% for enrollment in enrollments %}
+            <div class="enrollment-card {% if not enrollment.is_active %}inactive{% endif %}">
+                <div class="enrollment-header">
+                    <h3>
+                        <a href="{{ enrollment.group.course.get_absolute_url }}">
+                            {{ enrollment.group.course.title }}
+                        </a>
+                    </h3>
+                    <div class="enrollment-status">
+                        {% if enrollment.is_active %}
+                        <span class="badge badge-success">Активна</span>
+                        {% else %}
+                        <span class="badge badge-inactive">Завершена</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="enrollment-details">
+                    <p><strong>Группа:</strong> {{ enrollment.group.name }}</p>
+                    <p><strong>Преподаватель:</strong> 
+                        {% if enrollment.group.teacher %}
+                        {{ enrollment.group.teacher.get_full_name }}
+                        {% else %}
+                        Не назначен
+                        {% endif %}
+                    </p>
+                    <p><strong>Формат:</strong> {{ enrollment.group.get_format_display }}</p>
+                    <p><strong>Период:</strong> {{ enrollment.group.start_date }} — {{ enrollment.group.end_date }}</p>
+                </div>
+                <div class="enrollment-actions">
+                    <a href="{{ enrollment.group.course.get_absolute_url }}" class="btn btn-small">Подробнее</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>Вы пока не записаны ни на один курс.</p>
+            <a href="{% url 'courses-list' %}" class="btn btn-success">Выбрать курс</a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Быстрые действия -->
+    <div class="dashboard-section">
+        <h2>⚡ Быстрые действия</h2>
+        <div class="quick-actions">
+            <a href="{% url 'courses-list' %}" class="action-card">
+                <span class="action-icon">📖</span>
+                <span class="action-label">Каталог курсов</span>
+            </a>
+            <a href="{% url 'teachers-list' %}" class="action-card">
+                <span class="action-icon">👨‍🏫</span>
+                <span class="action-label">Преподаватели</span>
+            </a>
+            <a href="{% url 'reviews-list' %}" class="action-card">
+                <span class="action-icon">💬</span>
+                <span class="action-label">Отзывы</span>
+            </a>
+        </div>
+    </div>
+{% endblock %}

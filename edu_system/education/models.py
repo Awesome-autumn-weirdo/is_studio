@@ -20,7 +20,17 @@ def validate_image_size(value):
         raise ValidationError(f'Максимальный размер файла 5 МБ. Ваш файл: {filesize / (1024*1024):.1f} МБ')
 
 class Teacher(models.Model):
+
     """Преподаватели"""
+
+    user = models.OneToOneField(
+        User, 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True,
+        related_name='teacher_profile',
+        verbose_name="Пользователь"
+    )
     first_name = models.CharField(max_length=50, verbose_name="Имя")
     last_name = models.CharField(max_length=50, verbose_name="Фамилия")
     middle_name = models.CharField(max_length=50, blank=True, verbose_name="Отчество")
@@ -185,7 +195,14 @@ class Group(models.Model):
 
 class Student(models.Model):
     """Студенты"""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='student_profile')
+    user = models.OneToOneField(
+        User, 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True,
+        related_name='student_profile',
+        verbose_name="Пользователь"
+    )
     first_name = models.CharField(max_length=50, verbose_name="Имя")
     last_name = models.CharField(max_length=50, verbose_name="Фамилия")
     middle_name = models.CharField(max_length=50, blank=True, verbose_name="Отчество")
@@ -305,6 +322,31 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Отзыв от {self.student} на курс {self.course}"
+    
+    
+class Administrator(models.Model):
+    """Администраторы студии"""
+    user = models.OneToOneField(
+        User, 
+        on_delete=models.CASCADE,
+        related_name='admin_profile',
+        verbose_name="Пользователь"
+    )
+    first_name = models.CharField(max_length=50, verbose_name="Имя")
+    last_name = models.CharField(max_length=50, verbose_name="Фамилия")
+    phone = models.CharField(max_length=20, verbose_name="Телефон")
+    position = models.CharField(max_length=100, default="Администратор", verbose_name="Должность")
+    
+    class Meta:
+        db_table = 'administrators'
+        verbose_name = 'Администратор'
+        verbose_name_plural = 'Администраторы'
+    
+    def __str__(self):
+        return f"{self.last_name} {self.first_name}"
+    
+    def get_full_name(self):
+        return f"{self.last_name} {self.first_name}"
 
 
 # Пользовательский менеджер для опубликованных курсов

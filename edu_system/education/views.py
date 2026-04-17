@@ -1,12 +1,13 @@
-# education/views.py
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404
 from django.db.models import Q, Count, Avg
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, UpdateView, DeleteView
+from django.db.models import Q, Count, Avg, Min, Max, Sum
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.conf import settings
 
 from .models import (
     Course, Category, Teacher, Student, Group, 
@@ -17,6 +18,8 @@ from .forms import (
     GroupForm, EnrollmentForm, ScheduleForm, AttendanceForm,
     PerformanceForm, ReviewForm, CourseFilterForm
 )
+from .decorators import admin_required, teacher_required, student_required
+
 
 def course_detail(request, course_id):
     """
@@ -166,6 +169,7 @@ def page_not_found(request, exception):
 
 # ========== CRUD для курсов ==========
 
+@login_required(login_url=settings.LOGIN_URL)
 def course_create(request):
     """Создание нового курса"""
     if request.method == 'POST':
@@ -184,6 +188,7 @@ def course_create(request):
     return render(request, 'education/course_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def course_update(request, course_slug):
     """Редактирование курса"""
     course = get_object_or_404(Course, slug=course_slug)
@@ -205,6 +210,7 @@ def course_update(request, course_slug):
     return render(request, 'education/course_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def course_delete(request, course_slug):
     """Удаление курса"""
     course = get_object_or_404(Course, slug=course_slug)
@@ -288,6 +294,7 @@ def courses_filtered(request):
 
 # ========== CRUD для категорий ==========
 
+@login_required(login_url=settings.LOGIN_URL)
 def category_create(request):
     """Создание новой категории"""
     if request.method == 'POST':
@@ -306,6 +313,7 @@ def category_create(request):
     return render(request, 'education/category_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def category_update(request, cat_slug):
     """Редактирование категории"""
     category = get_object_or_404(Category, slug=cat_slug)
@@ -327,6 +335,7 @@ def category_update(request, cat_slug):
     return render(request, 'education/category_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def category_delete(request, cat_slug):
     """Удаление категории"""
     category = get_object_or_404(Category, slug=cat_slug)
@@ -382,6 +391,7 @@ def students_list(request):
     return render(request, 'education/students_list.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def student_detail(request, student_id):
     """Информация о студенте"""
     student = get_object_or_404(Student, id=student_id)
@@ -411,6 +421,7 @@ def student_detail(request, student_id):
 
 # ========== CRUD для преподавателей ==========
 
+@login_required(login_url=settings.LOGIN_URL)
 def teacher_create(request):
     """Добавление нового преподавателя"""
     if request.method == 'POST':
@@ -429,6 +440,7 @@ def teacher_create(request):
     return render(request, 'education/teacher_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def teacher_update(request, teacher_id):
     """Редактирование преподавателя"""
     teacher = get_object_or_404(Teacher, id=teacher_id)
@@ -450,6 +462,7 @@ def teacher_update(request, teacher_id):
     return render(request, 'education/teacher_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def teacher_delete(request, teacher_id):
     """Удаление преподавателя"""
     teacher = get_object_or_404(Teacher, id=teacher_id)
@@ -468,6 +481,7 @@ def teacher_delete(request, teacher_id):
 
 # ========== Группы ==========
 
+@login_required(login_url=settings.LOGIN_URL)
 def group_create(request):
     """Создание новой группы"""
     initial = {}
@@ -494,6 +508,7 @@ def group_create(request):
     return render(request, 'education/group_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def group_update(request, group_id):
     """Редактирование группы"""
     group = get_object_or_404(Group, id=group_id)
@@ -515,6 +530,7 @@ def group_update(request, group_id):
     return render(request, 'education/group_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def group_delete(request, group_id):
     """Удаление группы"""
     group = get_object_or_404(Group, id=group_id)
@@ -549,6 +565,7 @@ def groups_list(request):
     return render(request, 'education/groups_list.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def group_detail(request, group_id):
     """Детальная информация о группе"""
     group = get_object_or_404(Group.objects.select_related('course', 'teacher'), id=group_id)
@@ -574,6 +591,7 @@ def group_detail(request, group_id):
 
 # ========== Запись на курсы ==========
 
+@login_required(login_url=settings.LOGIN_URL)
 def enrollment_create(request):
     """Запись студента на курс"""
     if request.method == 'POST':
@@ -584,7 +602,24 @@ def enrollment_create(request):
                 f'Студент {enrollment.student.get_full_name()} записан в группу {enrollment.group.name}!')
             return redirect('student-detail', student_id=enrollment.student.id)
     else:
-        form = EnrollmentForm()
+        # Предзаполнение формы
+        initial = {}
+        student_id = request.GET.get('student')
+        group_id = request.GET.get('group')
+        
+        if student_id:
+            try:
+                initial['student'] = Student.objects.get(id=student_id)
+            except Student.DoesNotExist:
+                pass
+        
+        if group_id:
+            try:
+                initial['group'] = Group.objects.get(id=group_id)
+            except Group.DoesNotExist:
+                pass
+        
+        form = EnrollmentForm(initial=initial)
     
     data = {
         'title': 'Запись на курс',
@@ -593,6 +628,7 @@ def enrollment_create(request):
     return render(request, 'education/enrollment_form.html', data)
 
 
+@login_required(login_url=settings.LOGIN_URL)
 def enrollment_delete(request, enrollment_id):
     """Отмена записи на курс"""
     enrollment = get_object_or_404(Enrollment, id=enrollment_id)
@@ -614,14 +650,16 @@ def enrollment_delete(request, enrollment_id):
 
 # ========== Отзывы ==========
 
+@login_required(login_url=settings.LOGIN_URL)
 def review_create(request):
     """Создание отзыва"""
     if request.method == 'POST':
         form = ReviewForm(request.POST)
         if form.is_valid():
             review = form.save(commit=False)
-            # В реальном приложении здесь нужно привязать текущего пользователя
-            # review.student = request.user.student_profile
+            # Привязываем текущего пользователя-студента
+            if hasattr(request.user, 'student_profile'):
+                review.student = request.user.student_profile
             review.save()
             messages.success(request, 'Спасибо за ваш отзыв!')
             return redirect('course-detail-slug', course_slug=review.course.slug)

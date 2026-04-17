@@ -24,11 +24,23 @@ from education.views import page_not_found
 
 handler404 = page_not_found
 
+def redirect_to_login(request):
+    """Перенаправление на страницу входа"""
+    return redirect('/users/login/')
+
+def redirect_to_dashboard(request):
+    """Перенаправление на дашборд"""
+    return redirect('/users/dashboard/')
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('education/', include('education.urls')),
     path('users/', include('users.urls')),
     path('', lambda request: redirect('education-home')),
+
+    path('accounts/login/', redirect_to_login),
+    path('accounts/profile/', redirect_to_dashboard),
 ]
 
 if settings.DEBUG:

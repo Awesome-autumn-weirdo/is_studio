@@ -24,7 +24,7 @@
                     
                     <!-- Выпадающее меню "Добавить" -->
                     <li class="dropdown">
-                        <a href="#" class="dropbtn">➕ Добавить</a>
+                        <a href="#" class="dropbtn"> Добавить</a>
                         <div class="dropdown-content">
                             <a href="{% url 'course-create' %}">Новый курс</a>
                             <a href="{% url 'category-create' %}">Новую категорию</a>
@@ -33,6 +33,17 @@
                             <a href="{% url 'enrollment-create' %}">Записать на курс</a>
                         </div>
                     </li>
+
+                    <div class="auth-nav">
+                        {% if user.is_authenticated %}
+                        <span class="user-greeting">👤 {{ user.first_name }}</span>
+                        <a href="{% url 'profile' %}">Профиль</a>
+                        <a href="{% url 'logout' %}">Выход</a>
+                        {% else %}
+                        <a href="{% url 'login' %}">Вход</a>
+                        <a href="{% url 'register' %}">Регистрация</a>
+                        {% endif %}
+                    </div>
                 </ul>
             </nav>
         </div>
