@@ -712,3 +712,173 @@ def statistics(request):
         'active_teachers': active_teachers,
     }
     return render(request, 'education/statistics.html', data)
+
+
+    # ========== РАСПИСАНИЕ ==========
+
+def schedule_list(request):
+    """Просмотр общего расписания (доступно всем)"""
+    # Фильтрация по группе, если указана
+    group_id = request.GET.get('group')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    schedules = Schedule.objects.select_related('group__course', 'group__teacher').all()
+    
+    if group_id:
+        schedules = schedules.filter(group_id=group_id)
+    
+    if date_from:
+        schedules = schedules.filter(date__gte=date_from)
+    
+    if date_to:
+        schedules = schedules.filter(date__lte=date_to)
+    
+    # Сортировка
+    schedules = schedules.order_by('date', 'time')
+    
+    # Список групп для фильтра
+    groups = Group.objects.filter(is_active=True).select_related('course')
+    
+    data = {
+        'title': 'Расписание занятий',
+        'schedules': schedules,
+        'groups': groups,
+        'selected_group': group_id,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    return render(request, 'education/schedule_list.html', data)
+
+
+@login_required
+@admin_required
+def schedule_create(request):
+    """Создание нового занятия (только администратор)"""
+    initial = {}
+    group_id = request.GET.get('group')
+    
+    if group_id:
+        try:
+            initial['group'] = Group.objects.get(id=group_id)
+        except Group.DoesNotExist:
+            pass
+    
+    if request.method == 'POST':
+        form = ScheduleForm(request.POST)
+        if form.is_valid():
+            schedule = form.save()
+            messages.success(request, 
+                f'Занятие для группы "{schedule.group.name}" добавлено в расписание!')
+            return redirect('schedule-list')
+    else:
+        form = ScheduleForm(initial=initial)
+    
+    data = {
+        'title': 'Добавление занятия в расписание',
+        'form': form,
+    }
+    return render(request, 'education/schedule_form.html', data)
+
+
+@login_required
+@admin_required
+def schedule_update(request, schedule_id):
+    """Редактирование занятия (только администратор)"""
+    schedule = get_object_or_404(Schedule, id=schedule_id)
+    
+    if request.method == 'POST':
+        form = ScheduleForm(request.POST, instance=schedule)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Расписание успешно обновлено!')
+            return redirect('schedule-list')
+    else:
+        form = ScheduleForm(instance=schedule)
+    
+    data = {
+        'title': f'Редактирование занятия: {schedule.group.name}',
+        'form': form,
+        'schedule': schedule,
+    }
+    return render(request, 'education/schedule_form.html', data)
+
+
+@login_required
+@admin_required
+def schedule_delete(request, schedule_id):
+    """Удаление занятия (только администратор)"""
+    schedule = get_object_or_404(Schedule, id=schedule_id)
+    
+    if request.method == 'POST':
+        group_name = schedule.group.name
+        date = schedule.date
+        schedule.delete()
+        messages.success(request, f'Занятие группы "{group_name}" на {date} удалено!')
+        return redirect('schedule-list')
+    
+    data = {
+        'title': 'Удаление занятия',
+        'schedule': schedule,
+    }
+    return render(request, 'education/schedule_confirm_delete.html', data)
+
+
+@login_required
+def my_schedule(request):
+    """Расписание для текущего пользователя"""
+    user = request.user
+    
+    if hasattr(user, 'teacher_profile'):
+        # Преподаватель видит расписание своих групп
+        teacher = user.teacher_profile
+        schedules = Schedule.objects.filter(
+            group__teacher=teacher,
+            group__is_active=True
+        ).select_related('group__course').order_by('date', 'time')
+        
+        title = f'Моё расписание - {teacher.get_full_name()}'
+        
+    elif hasattr(user, 'student_profile'):
+        # Студент видит расписание своих групп
+        student = user.student_profile
+        schedules = Schedule.objects.filter(
+            group__enrollments__student=student,
+            group__enrollments__is_active=True,
+            group__is_active=True
+        ).select_related('group__course', 'group__teacher').order_by('date', 'time')
+        
+        title = f'Моё расписание - {student.get_full_name()}'
+        
+    else:
+        messages.warning(request, 'У вас нет привязанного профиля')
+        return redirect('schedule-list')
+    
+    data = {
+        'title': title,
+        'schedules': schedules,
+    }
+    return render(request, 'education/my_schedule.html', data)
+
+
+@login_required
+@teacher_required
+def group_schedule_detail(request, group_id):
+    """Детальное расписание группы (для преподавателя)"""
+    group = get_object_or_404(Group, id=group_id)
+    
+    # Проверяем, что преподаватель имеет доступ к этой группе
+    if hasattr(request.user, 'teacher_profile'):
+        teacher = request.user.teacher_profile
+        if group.teacher != teacher and not request.user.is_superuser:
+            messages.error(request, 'У вас нет доступа к расписанию этой группы')
+            return redirect('teacher-dashboard')
+    
+    schedules = group.schedule.all().order_by('date', 'time')
+    
+    data = {
+        'title': f'Расписание группы: {group.name}',
+        'group': group,
+        'schedules': schedules,
+    }
+    return render(request, 'education/group_schedule.html', data)

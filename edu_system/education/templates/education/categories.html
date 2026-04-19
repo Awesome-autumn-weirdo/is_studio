@@ -5,7 +5,9 @@
 {% block content %}
     <div class="page-header">
         <h1>{{ title }}</h1>
+        {% if is_admin %}
         <a href="{% url 'category-create' %}" class="btn btn-success">➕ Добавить категорию</a>
+        {% endif %}
     </div>
     
     {% if categories %}
@@ -19,8 +21,10 @@
             <p><strong>{{ category.course_count }}</strong> курсов</p>
             <div class="category-actions">
                 <a href="{{ category.get_absolute_url }}" class="btn">👁️ Просмотр</a>
+                {% if is_admin %}
                 <a href="{% url 'category-update' category.slug %}" class="btn btn-edit">✏️</a>
                 <a href="{% url 'category-delete' category.slug %}" class="btn btn-danger">🗑️</a>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

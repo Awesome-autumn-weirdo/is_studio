@@ -140,13 +140,14 @@ class EnrollmentForm(forms.ModelForm):
 
 
 class ScheduleForm(forms.ModelForm):
-    """Форма для создания расписания"""
+    """Форма для создания и редактирования расписания"""
     class Meta:
         model = Schedule
         fields = ['group', 'date', 'time', 'classroom', 'topic']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'time': forms.TimeInput(attrs={'type': 'time'}),
+            'topic': forms.TextInput(attrs={'placeholder': 'Тема занятия'}),
         }
         labels = {
             'group': 'Группа',
@@ -155,6 +156,35 @@ class ScheduleForm(forms.ModelForm):
             'classroom': 'Аудитория',
             'topic': 'Тема занятия',
         }
+        help_texts = {
+            'topic': 'Необязательное поле',
+        }
+    
+    def clean(self):
+        """Проверка на конфликты расписания"""
+        cleaned_data = super().clean()
+        group = cleaned_data.get('group')
+        date = cleaned_data.get('date')
+        time = cleaned_data.get('time')
+        
+        if group and date and time:
+            # Проверяем, нет ли уже занятия у этой группы в это время
+            existing = Schedule.objects.filter(
+                group=group,
+                date=date,
+                time=time
+            )
+            
+            # Если редактируем существующее занятие, исключаем его из проверки
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            
+            if existing.exists():
+                raise forms.ValidationError(
+                    f'У группы "{group.name}" уже есть занятие в {date} в {time}'
+                )
+        
+        return cleaned_data
 
 
 class AttendanceForm(forms.ModelForm):

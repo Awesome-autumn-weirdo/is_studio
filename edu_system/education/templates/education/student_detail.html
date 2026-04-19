@@ -9,7 +9,9 @@
         <div class="page-header">
             <h1>{{ student.get_full_name }}</h1>
             <div class="action-buttons">
+                {% if is_admin %}
                 <a href="{% url 'enrollment-create' %}?student={{ student.id }}" class="btn btn-success">📝 Записать на курс</a>
+                {% endif %}
                 <a href="{% url 'students-list' %}" class="btn">← К списку</a>
             </div>
         </div>
@@ -78,7 +80,9 @@
                                   onsubmit="return confirm('Отменить запись студента с курса?');" 
                                   style="display: inline;">
                                 {% csrf_token %}
+                                {% if is_admin or is_teacher %}
                                 <button type="submit" class="btn btn-small btn-danger">❌ Отменить запись</button>
+                                {% endif %}
                             </form>
                         </div>
                     </div>

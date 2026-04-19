@@ -9,9 +9,11 @@
         <div class="page-header">
             <h1>{{ group.name }}</h1>
             <div class="action-buttons">
+                {% if is_admin %}
                 <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-success">📝 Записать студента</a>
                 <a href="{% url 'group-update' group.id %}" class="btn btn-edit">✏️ Редактировать</a>
                 <a href="{% url 'group-delete' group.id %}" class="btn btn-danger">🗑️ Удалить</a>
+                {% endif %}
             </div>
         </div>
         
@@ -109,9 +111,11 @@
             {% else %}
             <div class="empty-state">
                 <p>В этой группе пока нет студентов.</p>
+                {% if is_admin %}
                 <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-success">
                     📝 Записать первого студента
                 </a>
+                {% endif %}
             </div>
             {% endif %}
         </div>
@@ -150,7 +154,9 @@
             {% endif %}
             
             <div class="add-schedule">
+                {% if is_admin %}
                 <a href="#" class="btn btn-primary">➕ Добавить занятие</a>
+                {% endif %}
             </div>
         </div>
         
@@ -190,7 +196,9 @@
             {% endif %}
             
             <div class="add-performance">
+                {% if is_teacher %}
                 <a href="#" class="btn btn-primary">➕ Выставить оценку</a>
+                {% endif %}
             </div>
         </div>
         

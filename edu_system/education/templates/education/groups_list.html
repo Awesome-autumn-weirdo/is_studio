@@ -5,7 +5,9 @@
 {% block content %}
     <div class="page-header">
         <h1>{{ title }}</h1>
+        {% if is_admin %}
         <a href="{% url 'group-create' %}" class="btn btn-success">➕ Создать группу</a>
+        {% endif %}
     </div>
     
     <div class="stats-section">
@@ -53,9 +55,11 @@
                 </td>
                 <td class="actions">
                     <a href="{% url 'group-detail' group.id %}" class="btn btn-small">👁️</a>
+                    {% if is_admin %}
                     <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-small">📝</a>
                     <a href="{% url 'group-update' group.id %}" class="btn btn-small btn-edit">✏️</a>
                     <a href="{% url 'group-delete' group.id %}" class="btn btn-small btn-danger">🗑️</a>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -63,6 +67,8 @@
     </table>
     {% else %}
     <p>Группы пока не созданы.</p>
+    {% if is_admin %}
     <a href="{% url 'group-create' %}" class="btn btn-success">➕ Создать первую группу</a>
+    {% endif %}
     {% endif %}
 {% endblock %}

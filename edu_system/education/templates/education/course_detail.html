@@ -7,9 +7,11 @@
         <div class="page-header">
             <h1>{{ course.title }}</h1>
             <div class="action-buttons">
+                {% if is_admin %}
                 <a href="{% url 'group-create' %}?course={{ course.id }}" class="btn btn-success">➕ Создать группу</a>
                 <a href="{% url 'course-update' course.slug %}" class="btn btn-edit">✏️ Редактировать</a>
                 <a href="{% url 'course-delete' course.slug %}" class="btn btn-danger">🗑️ Удалить</a>
+                {% endif %}
             </div>
         </div>
         
@@ -30,21 +32,29 @@
             {% if course.time_update != course.time_create %}
             <p><strong>Последнее обновление:</strong> {{ course.time_update|date:"d.m.Y" }}</p>
             {% endif %}
-            {% if avg_rating %}
+            
+            {# Рейтинг курса #}
             <p><strong>Рейтинг:</strong> 
-                <span class="rating-display">
-                    {% for i in "12345"|make_list %}
-                        {% if forloop.counter <= avg_rating|floatformat:0|add:"0" %}
-                            ★
-                        {% else %}
-                            ☆
-                        {% endif %}
-                    {% endfor %}
-                    {{ avg_rating|floatformat:1 }} / 5 ({{ reviews.count }} 
-                    {{ reviews.count|pluralize:"отзыв,отзыва,отзывов" }})
-                </span>
+                {% if avg_rating %}
+                    <span class="rating-display">
+                        {% with avg_rating_int=avg_rating|floatformat:"0"|add:"0" %}
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= avg_rating_int %}
+                                    <span class="star full">★</span>
+                                {% else %}
+                                    <span class="star empty">☆</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endwith %}
+                        {{ avg_rating|floatformat:1 }} / 5 
+                        ({{ reviews.count }} {{ reviews.count|pluralize:"отзыв,отзыва,отзывов" }})
+                    </span>
+                {% else %}
+                    <span class="no-rating">
+                        ☆☆☆☆☆ Нет оценок
+                    </span>
+                {% endif %}
             </p>
-            {% endif %}
         </div>
         
         <div class="course-description">
@@ -65,7 +75,9 @@
                         <th>Формат</th>
                         <th>Период</th>
                         <th>Мест</th>
+                        {% if is_admin or is_teacher %}
                         <th>Действия</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -76,11 +88,15 @@
                         <td>{{ group.get_format_display }}</td>
                         <td>{{ group.start_date }} — {{ group.end_date }}</td>
                         <td>{{ group.enrollments.count }}/{{ group.max_students }}</td>
+                        {% if is_admin or is_teacher %}
                         <td class="actions">
-                            <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-small">📝 Записать</a>
+                            <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-small">📝</a>
+                            {% if is_admin %}
                             <a href="{% url 'group-update' group.id %}" class="btn btn-small btn-edit">✏️</a>
                             <a href="{% url 'group-delete' group.id %}" class="btn btn-small btn-danger">🗑️</a>
+                            {% endif %}
                         </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -89,43 +105,54 @@
         {% else %}
         <div class="empty-state">
             <p>Для этого курса пока нет групп.</p>
+            {% if is_admin %}
             <a href="{% url 'group-create' %}?course={{ course.id }}" class="btn btn-success">➕ Создать первую группу</a>
+            {% endif %}
         </div>
         {% endif %}
         
-        {% if reviews %}
+        {# Отзывы #}
         <div class="course-reviews">
             <div class="reviews-header">
                 <h2>Отзывы студентов</h2>
+                {% if user.is_authenticated %}
                 <a href="{% url 'review-create' %}" class="btn btn-small">✏️ Оставить отзыв</a>
+                {% endif %}
             </div>
-            {% for review in reviews %}
-            <div class="review-item">
-                <div class="review-header">
-                    <span class="author">{{ review.student.get_full_name }}</span>
-                    <span class="rating">
-                        {% for i in "12345"|make_list %}
-                            {% if forloop.counter <= review.rating %}
-                                ★
-                            {% else %}
-                                ☆
-                            {% endif %}
-                        {% endfor %}
-                        <span class="rating-value">{{ review.rating }}/5</span>
-                    </span>
-                    <span class="date">{{ review.review_date|date:"d.m.Y" }}</span>
+            
+            {% if reviews %}
+                {% for review in reviews %}
+                <div class="review-item">
+                    <div class="review-header">
+                        <span class="author">{{ review.student.get_full_name }}</span>
+                        <span class="rating">
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= review.rating %}
+                                    <span class="star full">★</span>
+                                {% else %}
+                                    <span class="star empty">☆</span>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="rating-value">{{ review.rating }}/5</span>
+                        </span>
+                        <span class="date">{{ review.review_date|date:"d.m.Y" }}</span>
+                    </div>
+                    <p class="review-comment">{{ review.comment }}</p>
                 </div>
-                <p class="review-comment">{{ review.comment }}</p>
-            </div>
-            {% endfor %}
+                {% endfor %}
+            {% else %}
+                <div class="empty-reviews">
+                    <p class="text-muted">
+                        {% if user.is_authenticated %}
+                            Пока нет отзывов об этом курсе. Будьте первым!
+                        {% else %}
+                            Пока нет отзывов об этом курсе. 
+                            <a href="{% url 'login' %}">Войдите</a>, чтобы оставить отзыв.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="course-reviews">
-            <h2>Отзывы студентов</h2>
-            <p class="text-muted">Пока нет отзывов об этом курсе.</p>
-            <a href="{% url 'review-create' %}" class="btn">✏️ Оставить первый отзыв</a>
-        </div>
-        {% endif %}
         
         <div class="course-footer">
             <p class="back-link">

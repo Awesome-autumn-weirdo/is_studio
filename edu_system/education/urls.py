@@ -39,6 +39,14 @@ urlpatterns = [
     path('students/', views.students_list, name='students-list'),
     path('student/register/', views.student_register, name='student-register'),
     path('student/<int:student_id>/', views.student_detail, name='student-detail'),
+
+    # Расписание
+    path('schedule/', views.schedule_list, name='schedule-list'),
+    path('schedule/my/', views.my_schedule, name='my-schedule'),
+    path('schedule/create/', views.schedule_create, name='schedule-create'),
+    path('schedule/<int:schedule_id>/update/', views.schedule_update, name='schedule-update'),
+    path('schedule/<int:schedule_id>/delete/', views.schedule_delete, name='schedule-delete'),
+    path('schedule/group/<int:group_id>/', views.group_schedule_detail, name='group-schedule'),
     
     # Записи на курсы
     path('enrollment/create/', views.enrollment_create, name='enrollment-create'),

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <div class="delete-confirmation">
+        <p>Вы уверены, что хотите удалить занятие:</p>
+        <p><strong>Группа:</strong> {{ schedule.group.name }}</p>
+        <p><strong>Курс:</strong> {{ schedule.group.course.title }}</p>
+        <p><strong>Дата:</strong> {{ schedule.date|date:"d.m.Y" }}</p>
+        <p><strong>Время:</strong> {{ schedule.time|time:"H:i" }}</p>
+        <p><strong>Аудитория:</strong> {{ schedule.classroom }}</p>
+        
+        <p class="warning">Это действие нельзя будет отменить!</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Да, удалить</button>
+            <a href="{% url 'schedule-list' %}" class="btn btn-secondary">Отмена</a>
+        </form>
+    </div>
+{% endblock %}

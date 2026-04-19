@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <div class="action-buttons">
+            {% if is_admin %}
+            <a href="{% url 'schedule-create' %}" class="btn btn-success">➕ Добавить занятие</a>
+            {% endif %}
+            <a href="{% url 'my-schedule' %}" class="btn">Моё расписание</a>
+        </div>
+    </div>
+    
+    <!-- Фильтры -->
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="filter-grid">
+                <div class="filter-field">
+                    <label>Группа</label>
+                    <select name="group">
+                        <option value="">Все группы</option>
+                        {% for g in groups %}
+                        <option value="{{ g.id }}" {% if selected_group == g.id|stringformat:"s" %}selected{% endif %}>
+                            {{ g.course.title }} - {{ g.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label>Дата с</label>
+                    <input type="date" name="date_from" value="{{ date_from }}">
+                </div>
+                <div class="filter-field">
+                    <label>Дата по</label>
+                    <input type="date" name="date_to" value="{{ date_to }}">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">Применить</button>
+                <a href="{% url 'schedule-list' %}" class="btn btn-secondary">Сбросить</a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Расписание -->
+    {% if schedules %}
+    <table class="schedule-table">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Время</th>
+                <th>Группа</th>
+                <th>Курс</th>
+                <th>Преподаватель</th>
+                <th>Аудитория</th>
+                <th>Тема</th>
+                {% if user.is_superuser or 'Администраторы' in user_groups %}
+                <th>Действия</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for lesson in schedules %}
+            <tr>
+                <td>{{ lesson.date|date:"d.m.Y" }}</td>
+                <td>{{ lesson.time|time:"H:i" }}</td>
+                <td>{{ lesson.group.name }}</td>
+                <td>
+                    <a href="{{ lesson.group.course.get_absolute_url }}">
+                        {{ lesson.group.course.title }}
+                    </a>
+                </td>
+                <td>
+                    {% if lesson.group.teacher %}
+                    {{ lesson.group.teacher.get_full_name }}
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>{{ lesson.classroom }}</td>
+                <td>{{ lesson.topic|default:"—" }}</td>
+                {% if is_admin %}
+                <td class="actions">
+                    <a href="{% url 'schedule-update' lesson.id %}" class="btn btn-small btn-edit">✏️</a>
+                    <a href="{% url 'schedule-delete' lesson.id %}" class="btn btn-small btn-danger">🗑️</a>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Расписание пока пусто.</p>
+        {% if is_admin %}
+        <a href="{% url 'schedule-create' %}" class="btn btn-success">➕ Добавить первое занятие</a>
+        {% endif %}
+    </div>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'schedule-list' %}" class="btn">📋 Общее расписание</a>
+    </div>
+    
+    {% if schedules %}
+    <table class="schedule-table">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Время</th>
+                <th>Группа</th>
+                <th>Курс</th>
+                <th>Преподаватель</th>
+                <th>Аудитория</th>
+                <th>Тема</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% regroup schedules by date as date_list %}
+            {% for date in date_list %}
+                {% for lesson in date.list %}
+                <tr>
+                    {% if forloop.first %}
+                    <td rowspan="{{ date.list|length }}" class="date-cell">
+                        {{ date.grouper|date:"d.m.Y" }}
+                    </td>
+                    {% endif %}
+                    <td>{{ lesson.time|time:"H:i" }}</td>
+                    <td>{{ lesson.group.name }}</td>
+                    <td>{{ lesson.group.course.title }}</td>
+                    <td>
+                        {% if lesson.group.teacher %}
+                        {{ lesson.group.teacher.get_full_name }}
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ lesson.classroom }}</td>
+                    <td>{{ lesson.topic|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>У вас пока нет занятий в расписании.</p>
+    </div>
+    {% endif %}
+{% endblock %}

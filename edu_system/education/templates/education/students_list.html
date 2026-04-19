@@ -5,7 +5,9 @@
 {% block content %}
     <div class="page-header">
         <h1>{{ title }}</h1>
+        {% if is_admin %}
         <a href="{% url 'student-register' %}" class="btn btn-success">➕ Зарегистрировать студента</a>
+        {% endif %}
     </div>
     
     {% if students %}
@@ -37,6 +39,8 @@
     </table>
     {% else %}
     <p>Студенты пока не зарегистрированы.</p>
+    {% if is_admin %}
     <a href="{% url 'student-register' %}" class="btn btn-success">➕ Зарегистрировать первого студента</a>
+    {% endif %}
     {% endif %}
 {% endblock %}
