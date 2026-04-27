@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'student-dashboard' %}" class="btn">← В личный кабинет</a>
+    </div>
+    
+    <div class="performance-summary-card">
+        <h2>Общая успеваемость</h2>
+        <p><strong>Всего оценок:</strong> {{ total_performances }}</p>
+    </div>
+    
+    {% if by_course %}
+    <div class="performance-by-course">
+        {% for course_id, data in by_course.items %}
+        <div class="course-performance-card">
+            <h3>
+                <a href="{{ data.course.get_absolute_url }}">{{ data.course.title }}</a>
+            </h3>
+            
+            <div class="course-stats">
+                <p><strong>Средний балл:</strong> 
+                    {% if data.avg_grade %}
+                    <span class="avg-grade">{{ data.avg_grade }}</span>
+                    {% else %}
+                    Нет оценок
+                    {% endif %}
+                </p>
+                <p><strong>Количество оценок:</strong> {{ data.total }}</p>
+            </div>
+            
+            <table class="grades-table">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Оценка</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for perf in data.performances %}
+                    <tr>
+                        <td>{{ perf.date|date:"d.m.Y" }}</td>
+                        <td>
+                            <span class="grade grade-{{ perf.grade|lower }}">{{ perf.grade }}</span>
+                        </td>
+                        <td>{{ perf.comment|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>У вас пока нет оценок.</p>
+    </div>
+    {% endif %}
+{% endblock %}

@@ -17,12 +17,23 @@
                     <li><a href="{% url 'courses-list' %}">Курсы</a></li>
                     <li><a href="{% url 'categories' %}">Категории</a></li>
                     <li><a href="{% url 'teachers-list' %}">Преподаватели</a></li>
+                    {% if is_admin or is_marketer or is_teacher %}
                     <li><a href="{% url 'students-list' %}">Студенты</a></li>
+                    {% endif %}
+                    {% if is_admin or is_marketer or is_teacher or is_student %}
                     <li><a href="{% url 'schedule-list' %}">Расписание</a></li>
+                    {% endif %}
+
+                    {% if is_student %}
+                    <li><a href="{% url 'student-attendance' %}">Моя посещаемость</a></li>
+                    <li><a href="{% url 'student-performance' %}">Мои оценки</a></li>
+                    {% endif %}
                     
                     <li><a href="{% url 'groups-list' %}">Группы</a>
                     <li><a href="{% url 'reviews-list' %}">Отзывы</a></li>
+                    {% if is_admin or is_marketer %}
                     <li><a href="{% url 'statistics' %}">Статистика</a></li>
+                    {% endif %}
                     
                     <!-- Выпадающее меню "Добавить" -->
                     {% if is_admin %}
@@ -62,7 +73,7 @@
             <div class="messages">
                 {% for message in messages %}
                 <div class="message {{ message.tags }}">
-                    {{ message }}
+                    {{ message|safe }}
                 </div>
                 {% endfor %}
             </div>

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <div class="schedule-info">
+            <p><strong>Группа:</strong> {{ schedule.group.name }}</p>
+            <p><strong>Курс:</strong> {{ schedule.group.course.title }}</p>
+            <p><strong>Дата:</strong> {{ schedule.date|date:"d.m.Y" }}</p>
+            <p><strong>Время:</strong> {{ schedule.time|time:"H:i" }}</p>
+            <p><strong>Аудитория:</strong> {{ schedule.classroom }}</p>
+        </div>
+    </div>
+    
+    {% if enrollments %}
+    <form method="post" class="attendance-form">
+        {% csrf_token %}
+        
+        <table class="attendance-mark-table">
+            <thead>
+                <tr>
+                    <th>Студент</th>
+                    <th>Статус</th>
+                    <th>Примечание</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for enrollment in enrollments %}
+                <tr>
+                    <td class="student-name">
+                        {{ enrollment.student.get_full_name }}
+                    </td>
+                    <td class="status-select">
+                        <select name="status_{{ enrollment.student.id }}" class="status-selector">
+                            <option value="">-- Выберите --</option>
+                            {% for value, label in status_choices %}
+                            <option value="{{ value }}" 
+                                {% if existing_attendance.enrollment.student.id.status == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="note-input">
+                        <input type="text" 
+                               name="note_{{ enrollment.student.id }}" 
+                               placeholder="Примечание"
+                               value="{{ existing_attendance.enrollment.student.id.note|default:'' }}">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Сохранить посещаемость</button>
+            <a href="{% url 'group-schedule' schedule.group.id %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+    
+    <div class="quick-actions">
+        <button type="button" class="btn btn-small" onclick="markAll('present')">✅ Все присутствуют</button>
+        <button type="button" class="btn btn-small" onclick="markAll('absent')">❌ Все отсутствуют</button>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>В этой группе нет активных студентов.</p>
+    </div>
+    {% endif %}
+    
+    <script>
+    function markAll(status) {
+        document.querySelectorAll('.status-selector').forEach(select => {
+            select.value = status;
+        });
+    }
+    </script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <div class="action-buttons">
+            <a href="{% url 'group-detail' group.id %}" class="btn">← К группе</a>
+            <a href="{% url 'performance-add' group.id %}" class="btn btn-success">➕ Выставить оценки</a>
+        </div>
+    </div>
+    
+    <div class="report-info">
+        <p><strong>Курс:</strong> {{ group.course.title }}</p>
+        <p><strong>Группа:</strong> {{ group.name }}</p>
+        <p><strong>Преподаватель:</strong> {{ group.teacher.get_full_name|default:"Не назначен" }}</p>
+    </div>
+    
+    {% if student_performance %}
+    <div class="performance-summary">
+        <h2>Сводка по успеваемости</h2>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Студент</th>
+                    <th>Средний балл</th>
+                    <th>Количество оценок</th>
+                    <th>Последняя оценка</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in student_performance %}
+                <tr>
+                    <td>
+                        <a href="{% url 'student-detail' item.student.id %}">
+                            {{ item.student.get_full_name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if item.avg_grade %}
+                        <span class="avg-grade-badge" style="background-color: {% if item.avg_grade >= 4.5 %}#2e4a2e{% elif item.avg_grade >= 3.5 %}#4a3f35{% elif item.avg_grade >= 2.5 %}#6b5a2e{% else %}#8b3a3a{% endif %};">
+                            {{ item.avg_grade }}
+                        </span>
+                        {% else %}
+                        <span class="no-grade">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.total_grades }}</td>
+                    <td>
+                        {% with last=item.performances|first %}
+                            {% if last %}
+                            {{ last.grade }} ({{ last.date|date:"d.m.Y" }})
+                            {% else %}
+                            —
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="actions">
+                        <a href="{% url 'performance-single-add' group.id item.student.id %}" class="btn btn-small">✏️ Оценить</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Детальные оценки по студентам -->
+    <div class="performance-detail">
+        <h2>Детальные оценки</h2>
+        
+        {% for item in student_performance %}
+            {% if item.performances %}
+            <div class="student-performance-card">
+                <h3>
+                    <a href="{% url 'student-detail' item.student.id %}">
+                        {{ item.student.get_full_name }}
+                    </a>
+                    <span class="avg-badge">Средний балл: {{ item.avg_grade|default:"—" }}</span>
+                </h3>
+                
+                <table class="grades-table">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Оценка</th>
+                            <th>Комментарий</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for perf in item.performances|slice:":10" %}
+                        <tr>
+                            <td>{{ perf.date|date:"d.m.Y" }}</td>
+                            <td>
+                                <span class="grade grade-{{ perf.grade|lower }}">{{ perf.grade }}</span>
+                            </td>
+                            <td>{{ perf.comment|default:"—"|truncatewords:10 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if item.performances|length > 10 %}
+                <p class="more-link">Показаны последние 10 из {{ item.performances|length }} оценок</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>В этой группе пока нет оценок.</p>
+        <a href="{% url 'performance-add' group.id %}" class="btn btn-success">➕ Выставить первые оценки</a>
+    </div>
+    {% endif %}
+{% endblock %}

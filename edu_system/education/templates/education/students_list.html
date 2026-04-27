@@ -15,6 +15,7 @@
         <thead>
             <tr>
                 <th>ID</th>
+                <th>Логин</th>
                 <th>ФИО</th>
                 <th>Email</th>
                 <th>Телефон</th>
@@ -26,6 +27,7 @@
             {% for student in students %}
             <tr>
                 <td>{{ student.id }}</td>
+                <td>{{ student.user.username|default:"—" }}</td>
                 <td>{{ student.get_full_name }}</td>
                 <td>{{ student.email }}</td>
                 <td>{{ student.phone }}</td>

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'student-dashboard' %}" class="btn">← В личный кабинет</a>
+    </div>
+    
+    <div class="attendance-summary-card">
+        <h2>Сводка по посещаемости</h2>
+        <p><strong>Всего отмеченных занятий:</strong> {{ total_attendances }}</p>
+    </div>
+    
+    {% if by_course %}
+    <div class="attendance-by-course">
+        {% for course_id, data in by_course.items %}
+        <div class="course-attendance-card">
+            <h3>
+                <a href="{{ data.course.get_absolute_url }}">{{ data.course.title }}</a>
+                <span class="group-name">({{ data.group.name }})</span>
+            </h3>
+            
+            <div class="attendance-stats">
+                <div class="stat-item">
+                    <span class="stat-label">✅ Присутствовал:</span>
+                    <span class="stat-value present">{{ data.stats.present }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">❌ Отсутствовал:</span>
+                    <span class="stat-value absent">{{ data.stats.absent }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">⏰ Опоздал:</span>
+                    <span class="stat-value late">{{ data.stats.late }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">📝 Уваж. причина:</span>
+                    <span class="stat-value excused">{{ data.stats.excused }}</span>
+                </div>
+            </div>
+            
+            <div class="progress-bar-large">
+                <div class="progress-fill" style="width: {% widthratio data.stats.present data.attendances|length 100 %}%;">
+                    {% widthratio data.stats.present data.attendances|length 100 %}%
+                </div>
+            </div>
+            
+            <table class="attendance-history-table">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Время</th>
+                        <th>Тема</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for att in data.attendances|slice:":10" %}
+                    <tr>
+                        <td>{{ att.schedule.date|date:"d.m.Y" }}</td>
+                        <td>{{ att.schedule.time|time:"H:i" }}</td>
+                        <td>{{ att.schedule.topic|default:"—" }}</td>
+                        <td>
+                            <span class="attendance-status status-{{ att.status }}">
+                                {{ att.get_status_display }}
+                            </span>
+                            {% if att.note %}
+                            <br><small>{{ att.note }}</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% if data.attendances|length > 10 %}
+            <p class="more-link">Показаны последние 10 из {{ data.attendances|length }} занятий</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>У вас пока нет отмеченных занятий.</p>
+    </div>
+    {% endif %}
+{% endblock %}

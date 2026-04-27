@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <div class="student-info-card">
+        <p><strong>Студент:</strong> {{ student.get_full_name }}</p>
+        <p><strong>Группа:</strong> {{ group.name }}</p>
+        <p><strong>Курс:</strong> {{ group.course.title }}</p>
+    </div>
+    
+    <form method="post" class="performance-form">
+        {% csrf_token %}
+        
+        {% for field in form %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+            <small class="help-text">{{ field.help_text }}</small>
+            {% endif %}
+            {% if field.errors %}
+            <div class="error-list">{{ field.errors }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Сохранить оценку</button>
+            <a href="{% url 'performance-group-report' group.id %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+{% endblock %}

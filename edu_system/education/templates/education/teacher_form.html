@@ -5,21 +5,51 @@
 {% block content %}
     <h1>{{ title }}</h1>
     
+    <div class="help-info">
+        <p>💡 <strong>Учетная запись создается автоматически.</strong></p>
+        <p>Оставьте поля "Логин" и "Пароль" пустыми для автоматической генерации.</p>
+        <p>После создания преподавателя вы увидите данные для входа.</p>
+    </div>
+    
     <form method="post" enctype="multipart/form-data" class="teacher-form">
         {% csrf_token %}
         
-        {% for field in form %}
-        <div class="form-group">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}
-            <small class="help-text">{{ field.help_text }}</small>
-            {% endif %}
-            {% if field.errors %}
-            <div class="error-list">{{ field.errors }}</div>
-            {% endif %}
+        <!-- Поля учетной записи -->
+        <div class="form-section">
+            <h2>🔑 Данные для входа</h2>
+            
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+                {{ form.username }}
+                <small class="help-text">{{ form.username.help_text }}</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+                {{ form.password }}
+                <small class="help-text">{{ form.password.help_text }}</small>
+            </div>
         </div>
-        {% endfor %}
+        
+        <!-- Личные данные -->
+        <div class="form-section">
+            <h2>👨‍🏫 Личные данные</h2>
+            
+            {% for field in form %}
+                {% if field.name != 'username' and field.name != 'password' %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% if field.errors %}
+                    <div class="error-list">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
         
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Сохранить</button>

@@ -6,10 +6,167 @@ from django.contrib.auth.models import User, Group
 from education.models import Student, Teacher, Course, Review
 from education.roles import get_user_role
 from django.db.models import Count, Avg
+from django.contrib.auth.models import Group as AuthGroup
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings
+
 from .forms import (
     UserRegistrationForm, UserLoginForm, 
-    UserProfileForm, StudentProfileForm, TeacherProfileForm
+    UserProfileForm, StudentProfileForm, TeacherProfileForm,
+    CustomPasswordChangeForm, ForgotPasswordForm, 
+    ResetPasswordForm, ChangeLoginForm
 )
+
+
+@login_required
+def change_password(request):
+    """Смена пароля (когда пользователь знает старый пароль)"""
+    if request.method == 'POST':
+        form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Обновляем сессию, чтобы пользователь не вылетел после смены пароля
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Пароль успешно изменен!')
+            return redirect('profile')
+        else:
+            messages.error(request, 'Пожалуйста, исправьте ошибки ниже.')
+    else:
+        form = CustomPasswordChangeForm(user=request.user)
+    
+    data = {
+        'title': 'Смена пароля',
+        'form': form,
+    }
+    return render(request, 'users/change_password.html', data)
+
+
+def forgot_password(request):
+    """Восстановление пароля (если забыл)"""
+    if request.method == 'POST':
+        form = ForgotPasswordForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data.get('email')
+            username = form.cleaned_data.get('username')
+            
+            user = None
+            if email:
+                user = User.objects.filter(email=email).first()
+            elif username:
+                user = User.objects.filter(username=username).first()
+            
+            if user:
+                # Генерируем токен для сброса пароля
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                
+                # Ссылка для сброса пароля
+                reset_url = request.build_absolute_uri(
+                    f'/users/reset-password/{uid}/{token}/'
+                )
+                
+                # Отправляем email (если настроена почта)
+                try:
+                    send_mail(
+                        'Восстановление пароля - Студия дополнительного образования',
+                        f'Здравствуйте, {user.first_name}!\n\n'
+                        f'Для сброса пароля перейдите по ссылке:\n{reset_url}\n\n'
+                        f'Если вы не запрашивали сброс пароля, проигнорируйте это письмо.',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user.email],
+                        fail_silently=True,
+                    )
+                    messages.success(request, 
+                        f'Инструкция по восстановлению пароля отправлена на email: {user.email}')
+                except Exception:
+                    # Если email не работает, сразу показываем ссылку (только для разработки)
+                    messages.success(request, 
+                        f'Ссылка для сброса пароля: {reset_url}')
+                    messages.warning(request, 
+                        'В рабочем режиме ссылка будет отправлена на email.')
+            else:
+                messages.error(request, 'Пользователь с такими данными не найден')
+            
+            return redirect('login')
+    else:
+        form = ForgotPasswordForm()
+    
+    data = {
+        'title': 'Восстановление пароля',
+        'form': form,
+    }
+    return render(request, 'users/forgot_password.html', data)
+
+
+def reset_password(request, uidb64, token):
+    """Установка нового пароля после восстановления"""
+    try:
+        # Декодируем ID пользователя
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+    
+    # Проверяем токен
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == 'POST':
+            form = ResetPasswordForm(request.POST)
+            if form.is_valid():
+                # Устанавливаем новый пароль
+                new_password = form.cleaned_data['new_password1']
+                user.set_password(new_password)
+                user.save()
+                
+                messages.success(request, 
+                    'Пароль успешно изменен! Теперь вы можете войти с новым паролем.')
+                return redirect('login')
+        else:
+            form = ResetPasswordForm(initial={'user_id': user.id})
+        
+        data = {
+            'title': 'Установка нового пароля',
+            'form': form,
+            'validlink': True,
+        }
+        return render(request, 'users/reset_password.html', data)
+    else:
+        data = {
+            'title': 'Ошибка сброса пароля',
+            'validlink': False,
+        }
+        return render(request, 'users/reset_password.html', data)
+
+
+@login_required
+def change_login(request):
+    """Смена логина"""
+    if request.method == 'POST':
+        form = ChangeLoginForm(request.POST)
+        if form.is_valid():
+            user = request.user
+            # Проверяем пароль
+            if user.check_password(form.cleaned_data['password']):
+                old_username = user.username
+                user.username = form.cleaned_data['new_username']
+                user.save()
+                
+                messages.success(request, 
+                    f'Логин успешно изменен с <strong>{old_username}</strong> на <strong>{user.username}</strong>')
+                return redirect('profile')
+            else:
+                form.add_error('password', 'Неверный пароль')
+    else:
+        form = ChangeLoginForm()
+    
+    data = {
+        'title': 'Смена логина',
+        'form': form,
+    }
+    return render(request, 'users/change_login.html', data)
 
 
 def register_view(request):
@@ -45,8 +202,26 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            messages.success(request, f'С возвращением, {user.first_name}!')
+            messages.success(request, f'С возвращением, {user.first_name or user.username}!')
+            
+            # Проверяем и исправляем роль пользователя
+            if not user.groups.exists():
+                # Проверяем наличие профиля
+                if hasattr(user, 'teacher_profile') and user.teacher_profile.is_active:
+                    teacher_group, _ = AuthGroup.objects.get_or_create(name='Преподаватели')
+                    user.groups.add(teacher_group)
+                    messages.info(request, 'Вам назначена роль "Преподаватель"')
+                elif hasattr(user, 'student_profile'):
+                    student_group, _ = AuthGroup.objects.get_or_create(name='Студенты')
+                    user.groups.add(student_group)
+                    messages.info(request, 'Вам назначена роль "Студент"')
+                elif user.is_superuser:
+                    admin_group, _ = AuthGroup.objects.get_or_create(name='Администраторы')
+                    user.groups.add(admin_group)
+            
             return redirect('dashboard')
+        else:
+            messages.error(request, 'Неверный логин или пароль')
     else:
         form = UserLoginForm()
     
@@ -103,8 +278,24 @@ def profile_view(request):
 @login_required
 def dashboard_redirect(request):
     """Перенаправление на соответствующий дашборд в зависимости от роли"""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
     user = request.user
     
+    # Автоматически исправляем роль, если её нет
+    if not user.groups.exists():
+        if hasattr(user, 'teacher_profile') and user.teacher_profile.is_active:
+            teacher_group, _ = AuthGroup.objects.get_or_create(name='Преподаватели')
+            user.groups.add(teacher_group)
+        elif hasattr(user, 'student_profile'):
+            student_group, _ = AuthGroup.objects.get_or_create(name='Студенты')
+            user.groups.add(student_group)
+        elif user.is_superuser:
+            admin_group, _ = AuthGroup.objects.get_or_create(name='Администраторы')
+            user.groups.add(admin_group)
+    
+    # Проверяем роли и перенаправляем
     if user.is_superuser or user.groups.filter(name='Администраторы').exists():
         return redirect('admin:index')
     elif user.groups.filter(name='Преподаватели').exists():

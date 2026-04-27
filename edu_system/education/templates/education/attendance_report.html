@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load education_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <div class="action-buttons">
+            <a href="{% url 'group-detail' group.id %}" class="btn">← К группе</a>
+            <a href="{% url 'group-schedule' group.id %}" class="btn">📅 Расписание</a>
+        </div>
+    </div>
+    
+    <div class="report-info">
+        <p><strong>Курс:</strong> {{ group.course.title }}</p>
+        <p><strong>Группа:</strong> {{ group.name }}</p>
+        <p><strong>Преподаватель:</strong> {{ group.teacher.get_full_name|default:"Не назначен" }}</p>
+        <p><strong>Всего занятий:</strong> {{ stats.total_lessons }}</p>
+    </div>
+    
+    <!-- Сводная статистика -->
+    <div class="stats-section">
+        <h2>Сводка по студентам</h2>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Студент</th>
+                    <th>Присутствовал</th>
+                    <th>Отсутствовал</th>
+                    <th>Опоздал</th>
+                    <th>Уваж. причина</th>
+                    <th>% посещаемости</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in stats.students %}
+                <tr>
+                    <td>
+                        <a href="{% url 'student-detail' item.student.id %}">
+                            {{ item.student.get_full_name }}
+                        </a>
+                    </td>
+                    <td class="stat-present">{{ item.present }}</td>
+                    <td class="stat-absent">{{ item.absent }}</td>
+                    <td class="stat-late">{{ item.late }}</td>
+                    <td class="stat-excused">{{ item.excused }}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ item.attendance_rate|floatformat:0 }}%;">
+                                {{ item.attendance_rate|floatformat:1 }}%
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Детальная таблица посещаемости -->
+    {% if schedules %}
+    <div class="attendance-detail-section">
+        <h2>Детальная посещаемость</h2>
+        <div class="table-scroll">
+            <table class="attendance-report-table">
+                <thead>
+                    <tr>
+                        <th class="student-col">Студент</th>
+                        {% for schedule in schedules %}
+                        <th title="{{ schedule.topic|default:'' }}">
+                            {{ schedule.date|date:"d.m" }}<br>
+                            {{ schedule.time|time:"H:i" }}
+                        </th>
+                        {% endfor %}
+                        <th>Всего</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student_id, data in attendance_matrix.items %}
+                    <tr>
+                        <td class="student-col">
+                            {{ data.student.get_full_name }}
+                        </td>
+                        {% for schedule in schedules %}
+                        <td class="status-cell">
+                            {% with att=data.attendance|get_item:schedule.id %}
+                                {% if att %}
+                                    {% if att.status == 'present' %}
+                                    <span class="status-icon present" title="Присутствовал">✅</span>
+                                    {% elif att.status == 'absent' %}
+                                    <span class="status-icon absent" title="Отсутствовал">❌</span>
+                                    {% elif att.status == 'late' %}
+                                    <span class="status-icon late" title="Опоздал">⏰</span>
+                                    {% elif att.status == 'excused' %}
+                                    <span class="status-icon excused" title="По уважительной причине">📝</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="status-icon none" title="Не отмечен">—</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        {% endfor %}
+                        <td class="total-cell">
+                            {% with stats_item=stats.students|get_by_student_id:student_id %}
+                                {{ stats_item.present }}/{{ stats.total_lessons }}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <span><span class="status-icon present">✅</span> Присутствовал</span>
+        <span><span class="status-icon absent">❌</span> Отсутствовал</span>
+        <span><span class="status-icon late">⏰</span> Опоздал</span>
+        <span><span class="status-icon excused">📝</span> По ув. причине</span>
+        <span><span class="status-icon none">—</span> Не отмечен</span>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>В этой группе пока нет занятий в расписании.</p>
+    </div>
+    {% endif %}
+{% endblock %}

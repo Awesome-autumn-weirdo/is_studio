@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group as AuthGroup
 from django.urls import reverse
 
 from django.core.validators import FileExtensionValidator, MaxValueValidator
@@ -9,6 +9,9 @@ from PIL import Image
 from io import BytesIO
 from django.core.files.base import ContentFile
 import sys
+
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 
 
 def validate_image_size(value):
@@ -68,43 +71,68 @@ class Teacher(models.Model):
         return ' '.join(parts)
     
     def save(self, *args, **kwargs):
-        """Переопределяем save для сжатия и ресайза изображения"""
+        """Синхронизация с User, назначение роли и сжатие фото"""
+        
+        # Синхронизация данных с User
+        if self.user:
+            # Копируем данные из Teacher в User (если они заполнены)
+            if self.first_name:
+                self.user.first_name = self.first_name
+            if self.last_name:
+                self.user.last_name = self.last_name
+            if self.email:
+                self.user.email = self.email
+            self.user.save()
+        else:
+            # Если пользователь не указан, но есть email - ищем или создаем
+            if self.email:
+                user, created = User.objects.get_or_create(
+                    username=self.email.split('@')[0],
+                    defaults={
+                        'email': self.email,
+                        'first_name': self.first_name,
+                        'last_name': self.last_name,
+                    }
+                )
+                if not created:
+                    # Если пользователь уже существовал - обновляем его данные
+                    user.first_name = self.first_name
+                    user.last_name = self.last_name
+                    user.email = self.email
+                    user.save()
+                self.user = user
+        
+        # Сжатие и ресайз изображения
         if self.photo:
-            # Открываем изображение
             img = Image.open(self.photo)
-            
-            # Определяем максимальный размер
             max_width = 400
             max_height = 400
             
-            # Изменяем размер, если изображение больше максимального
             if img.width > max_width or img.height > max_height:
                 output_size = (max_width, max_height)
                 img.thumbnail(output_size, Image.Resampling.LANCZOS)
                 
-                # Сохраняем сжатое изображение в BytesIO
                 output = BytesIO()
                 
-                # Определяем формат
                 if img.format == 'PNG':
                     img.save(output, format='PNG', optimize=True, quality=85)
                 elif img.format == 'GIF':
                     img.save(output, format='GIF', optimize=True)
                 else:
-                    # Для JPEG и других форматов
                     if img.mode in ('RGBA', 'LA', 'P'):
                         img = img.convert('RGB')
                     img.save(output, format='JPEG', optimize=True, quality=85)
                 
                 output.seek(0)
-                
-                # Заменяем оригинальное изображение сжатым
-                self.photo = ContentFile(
-                    output.read(),
-                    name=self.photo.name
-                )
+                self.photo = ContentFile(output.read(), name=self.photo.name)
         
+        # Сохраняем преподавателя
         super().save(*args, **kwargs)
+        
+        # Назначаем роль после сохранения
+        if self.user and self.is_active:
+            teacher_group, _ = AuthGroup.objects.get_or_create(name='Преподаватели')
+            self.user.groups.add(teacher_group)
 
 
 class Category(models.Model):
@@ -225,6 +253,87 @@ class Student(models.Model):
         if self.middle_name:
             parts.append(self.middle_name)
         return ' '.join(parts)
+    
+    def save(self, *args, **kwargs):
+        """Синхронизация с User и назначение роли"""
+        
+        # Синхронизация данных с User
+        if self.user:
+            # Копируем данные из Student в User
+            if self.first_name:
+                self.user.first_name = self.first_name
+            if self.last_name:
+                self.user.last_name = self.last_name
+            if self.email:
+                self.user.email = self.email
+            self.user.save()
+        else:
+            # Если пользователь не указан, но есть email - создаем
+            if self.email:
+                base_username = self.email.split('@')[0]
+                username = base_username
+                counter = 1
+                
+                # Уникальное имя пользователя
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                
+                user = User.objects.create_user(
+                    username=username,
+                    email=self.email,
+                    first_name=self.first_name,
+                    last_name=self.last_name
+                )
+                self.user = user
+        
+        # Сохраняем студента
+        super().save(*args, **kwargs)
+        
+        # Назначаем роль после сохранения
+        if self.user:
+            student_group, _ = AuthGroup.objects.get_or_create(name='Студенты')
+            self.user.groups.add(student_group)
+
+
+# === Сигналы для автоматической синхронизации ===
+
+@receiver(post_save, sender=User)
+def sync_user_to_profile(sender, instance, created, **kwargs):
+    """Синхронизация данных из User в профиль при обновлении пользователя"""
+    if hasattr(instance, 'teacher_profile'):
+        teacher = instance.teacher_profile
+        updated = False
+        
+        if instance.first_name and teacher.first_name != instance.first_name:
+            teacher.first_name = instance.first_name
+            updated = True
+        if instance.last_name and teacher.last_name != instance.last_name:
+            teacher.last_name = instance.last_name
+            updated = True
+        if instance.email and teacher.email != instance.email:
+            teacher.email = instance.email
+            updated = True
+        
+        if updated:
+            teacher.save()
+    
+    elif hasattr(instance, 'student_profile'):
+        student = instance.student_profile
+        updated = False
+        
+        if instance.first_name and student.first_name != instance.first_name:
+            student.first_name = instance.first_name
+            updated = True
+        if instance.last_name and student.last_name != instance.last_name:
+            student.last_name = instance.last_name
+            updated = True
+        if instance.email and student.email != instance.email:
+            student.email = instance.email
+            updated = True
+        
+        if updated:
+            student.save()
 
 
 class Enrollment(models.Model):

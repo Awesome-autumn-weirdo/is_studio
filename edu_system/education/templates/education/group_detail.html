@@ -14,6 +14,9 @@
                 <a href="{% url 'group-update' group.id %}" class="btn btn-edit">✏️ Редактировать</a>
                 <a href="{% url 'group-delete' group.id %}" class="btn btn-danger">🗑️ Удалить</a>
                 {% endif %}
+                <a href="{% url 'attendance-group-report' group.id %}" class="btn">📋 Отчет по посещаемости</a>
+                <a href="{% url 'performance-group-report' group.id %}" class="btn">📊 Отчет по успеваемости</a>
+                <a href="{% url 'performance-add' group.id %}" class="btn btn-success">✏️ Выставить оценки</a>
             </div>
         </div>
         
@@ -155,7 +158,7 @@
             
             <div class="add-schedule">
                 {% if is_admin %}
-                <a href="#" class="btn btn-primary">➕ Добавить занятие</a>
+                <a href="{% url 'schedule-create' %}?group={{ group.id }}" class="btn btn-primary">➕ Добавить занятие</a>
                 {% endif %}
             </div>
         </div>

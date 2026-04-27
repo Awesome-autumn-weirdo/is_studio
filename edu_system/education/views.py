@@ -9,6 +9,10 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.conf import settings
 
+from django.utils import timezone
+from datetime import date, datetime
+from .decorators import teacher_required, admin_required, student_required
+
 from .models import (
     Course, Category, Teacher, Student, Group, 
     Enrollment, Schedule, Attendance, Performance, Review
@@ -356,12 +360,28 @@ def category_delete(request, cat_slug):
 # ========== CRUD для студентов ==========
 
 def student_register(request):
-    """Регистрация нового студента"""
+    """Регистрация нового студента (с автосозданием пользователя)"""
     if request.method == 'POST':
         form = StudentForm(request.POST)
         if form.is_valid():
             student = form.save()
-            messages.success(request, f'Студент {student.get_full_name()} успешно зарегистрирован!')
+            
+            # Получаем сгенерированные данные
+            username = getattr(form, 'generated_username', None) or student.user.username
+            password = getattr(form, 'generated_password', None)
+            
+            if password:
+                login_info = (
+                    f'Студент <strong>{student.get_full_name()}</strong> успешно зарегистрирован!<br>'
+                    f'🔑 <strong>Логин:</strong> {username}<br>'
+                    f'🔒 <strong>Пароль:</strong> {password}'
+                )
+                messages.success(request, login_info)
+                messages.warning(request, '⚠️ Сохраните пароль! Он больше не будет показан.')
+            else:
+                messages.success(request, 
+                    f'Студент {student.get_full_name()} успешно зарегистрирован!')
+            
             return redirect('students-list')
     else:
         form = StudentForm()
@@ -421,14 +441,31 @@ def student_detail(request, student_id):
 
 # ========== CRUD для преподавателей ==========
 
-@login_required(login_url=settings.LOGIN_URL)
+@login_required
 def teacher_create(request):
-    """Добавление нового преподавателя"""
+    """Добавление нового преподавателя (с автосозданием пользователя)"""
     if request.method == 'POST':
         form = TeacherForm(request.POST, request.FILES)
         if form.is_valid():
             teacher = form.save()
-            messages.success(request, f'Преподаватель {teacher.get_full_name()} успешно добавлен!')
+            
+            # Получаем сгенерированные данные для входа
+            username = getattr(form, 'generated_username', None)
+            password = getattr(form, 'generated_password', None)
+            
+            if password:
+                # Подготавливаем сообщение с данными для входа
+                login_info = (
+                    f'Преподаватель <strong>{teacher.get_full_name()}</strong> успешно добавлен!<br>'
+                    f'🔑 <strong>Логин:</strong> {username}<br>'
+                    f'🔒 <strong>Пароль:</strong> {password}'
+                )
+                messages.success(request, login_info)
+                messages.warning(request, '⚠️ Сохраните пароль! Он больше не будет показан.')
+            else:
+                messages.success(request, 
+                    f'Преподаватель {teacher.get_full_name()} успешно добавлен!')
+            
             return redirect('teachers-list')
     else:
         form = TeacherForm()
@@ -478,6 +515,7 @@ def teacher_delete(request, teacher_id):
         'teacher': teacher,
     }
     return render(request, 'education/teacher_confirm_delete.html', data)
+
 
 # ========== Группы ==========
 
@@ -882,3 +920,368 @@ def group_schedule_detail(request, group_id):
         'schedules': schedules,
     }
     return render(request, 'education/group_schedule.html', data)
+
+# ========== ПОСЕЩАЕМОСТЬ ==========
+
+@login_required
+@teacher_required
+def attendance_mark(request, schedule_id):
+    """Отметка посещаемости для занятия"""
+    schedule = get_object_or_404(
+        Schedule.objects.select_related('group__course', 'group__teacher'), 
+        id=schedule_id
+    )
+    
+    # Проверка, что преподаватель ведет эту группу
+    teacher = request.user.teacher_profile
+    if schedule.group.teacher != teacher and not request.user.is_superuser:
+        messages.error(request, 'Вы не можете отмечать посещаемость для этой группы')
+        return redirect('teacher-dashboard')
+    
+    # Получаем всех активных студентов группы
+    enrollments = schedule.group.enrollments.filter(
+        is_active=True
+    ).select_related('student').order_by('student__last_name', 'student__first_name')
+    
+    # Получаем существующие отметки
+    existing_attendance = {
+        att.student_id: att 
+        for att in Attendance.objects.filter(schedule=schedule)
+    }
+    
+    if request.method == 'POST':
+        success_count = 0
+        for enrollment in enrollments:
+            status = request.POST.get(f'status_{enrollment.student.id}')
+            note = request.POST.get(f'note_{enrollment.student.id}', '')
+            
+            if status:
+                Attendance.objects.update_or_create(
+                    schedule=schedule,
+                    student=enrollment.student,
+                    defaults={
+                        'status': status,
+                        'note': note
+                    }
+                )
+                success_count += 1
+        
+        messages.success(request, f'Посещаемость отмечена! ({success_count} студентов)')
+        return redirect('group-schedule', group_id=schedule.group.id)
+    
+    data = {
+        'title': f'Отметка посещаемости: {schedule.group.course.title}',
+        'schedule': schedule,
+        'enrollments': enrollments,
+        'existing_attendance': existing_attendance,
+        'status_choices': Attendance.STATUS_CHOICES,
+    }
+    return render(request, 'education/attendance_mark.html', data)
+
+
+@login_required
+def attendance_group_report(request, group_id):
+    """Отчет по посещаемости группы"""
+    group = get_object_or_404(Group.objects.select_related('course', 'teacher'), id=group_id)
+    
+    # Проверка доступа
+    user = request.user
+    can_view = False
+    
+    if user.is_superuser or user.groups.filter(name='Администраторы').exists():
+        can_view = True
+    elif hasattr(user, 'teacher_profile') and group.teacher == user.teacher_profile:
+        can_view = True
+    
+    if not can_view:
+        messages.error(request, 'У вас нет доступа к отчету по этой группе')
+        return redirect('education-home')
+    
+    # Получаем всех студентов группы
+    students = Student.objects.filter(
+        enrollments__group=group,
+        enrollments__is_active=True
+    ).distinct().order_by('last_name', 'first_name')
+    
+    # Получаем все занятия группы
+    schedules = group.schedule.all().order_by('date', 'time')
+    
+    # Собираем посещаемость в матрицу: студент x занятие
+    attendance_matrix = {}
+    for student in students:
+        attendance_matrix[student.id] = {
+            'student': student,
+            'attendance': {}
+        }
+    
+    for schedule in schedules:
+        attendances = Attendance.objects.filter(schedule=schedule)
+        for att in attendances:
+            if att.student_id in attendance_matrix:
+                attendance_matrix[att.student_id]['attendance'][schedule.id] = att
+    
+    # Статистика
+    stats = {
+        'total_lessons': schedules.count(),
+        'students': []
+    }
+    
+    for student_id, data in attendance_matrix.items():
+        student_att = data['attendance']
+        present_count = sum(1 for att in student_att.values() if att.status == 'present')
+        absent_count = sum(1 for att in student_att.values() if att.status == 'absent')
+        late_count = sum(1 for att in student_att.values() if att.status == 'late')
+        excused_count = sum(1 for att in student_att.values() if att.status == 'excused')
+        
+        attendance_rate = (present_count / stats['total_lessons'] * 100) if stats['total_lessons'] > 0 else 0
+        
+        stats['students'].append({
+            'student': data['student'],
+            'present': present_count,
+            'absent': absent_count,
+            'late': late_count,
+            'excused': excused_count,
+            'attendance_rate': attendance_rate,
+        })
+    
+    data = {
+        'title': f'Отчет по посещаемости: {group.name}',
+        'group': group,
+        'schedules': schedules,
+        'attendance_matrix': attendance_matrix,
+        'stats': stats,
+        'status_choices': dict(Attendance.STATUS_CHOICES),
+    }
+    return render(request, 'education/attendance_report.html', data)
+
+
+@login_required
+@student_required
+def student_attendance(request):
+    """Просмотр своей посещаемости студентом"""
+    student = request.user.student_profile
+    
+    # Получаем все посещения студента
+    attendances = Attendance.objects.filter(
+        student=student
+    ).select_related(
+        'schedule__group__course'
+    ).order_by('-schedule__date', '-schedule__time')
+    
+    # Группируем по группам/курсам
+    by_course = {}
+    for att in attendances:
+        course_id = att.schedule.group.course_id
+        if course_id not in by_course:
+            by_course[course_id] = {
+                'course': att.schedule.group.course,
+                'group': att.schedule.group,
+                'attendances': [],
+                'stats': {'present': 0, 'absent': 0, 'late': 0, 'excused': 0}
+            }
+        
+        by_course[course_id]['attendances'].append(att)
+        by_course[course_id]['stats'][att.status] += 1
+    
+    data = {
+        'title': f'Моя посещаемость - {student.get_full_name()}',
+        'student': student,
+        'by_course': by_course,
+        'total_attendances': attendances.count(),
+    }
+    return render(request, 'education/student_attendance.html', data)
+
+
+# ========== УСПЕВАЕМОСТЬ ==========
+
+@login_required
+@teacher_required
+def performance_add(request, group_id):
+    """Выставление оценок студентам группы"""
+    group = get_object_or_404(Group.objects.select_related('course', 'teacher'), id=group_id)
+    
+    # Проверка преподавателя
+    teacher = request.user.teacher_profile
+    if group.teacher != teacher and not request.user.is_superuser:
+        messages.error(request, 'Вы не можете выставлять оценки для этой группы')
+        return redirect('teacher-dashboard')
+    
+    # Получаем студентов группы
+    students = Student.objects.filter(
+        enrollments__group=group,
+        enrollments__is_active=True
+    ).distinct().order_by('last_name', 'first_name')
+    
+    if request.method == 'POST':
+        grade_date = request.POST.get('grade_date')
+        if grade_date:
+            grade_date = datetime.strptime(grade_date, '%Y-%m-%d').date()
+        else:
+            grade_date = date.today()
+        
+        success_count = 0
+        for student in students:
+            grade = request.POST.get(f'grade_{student.id}')
+            comment = request.POST.get(f'comment_{student.id}', '')
+            
+            if grade:
+                Performance.objects.create(
+                    student=student,
+                    group=group,
+                    grade=grade,
+                    comment=comment,
+                    date=grade_date
+                )
+                success_count += 1
+        
+        messages.success(request, f'Оценки выставлены! ({success_count} студентов)')
+        return redirect('group-detail', group_id=group.id)
+    
+    # Предзаполненные оценки (если есть за сегодня)
+    existing_grades = {}
+    today_grades = Performance.objects.filter(
+        group=group,
+        date=date.today()
+    )
+    for perf in today_grades:
+        existing_grades[perf.student_id] = perf
+    
+    data = {
+        'title': f'Выставление оценок: {group.name}',
+        'group': group,
+        'students': students,
+        'existing_grades': existing_grades,
+        'today': date.today(),
+    }
+    return render(request, 'education/performance_add.html', data)
+
+
+@login_required
+def performance_single_add(request, group_id, student_id):
+    """Выставление оценки одному студенту"""
+    group = get_object_or_404(Group, id=group_id)
+    student = get_object_or_404(Student, id=student_id)
+    
+    # Проверка доступа
+    if hasattr(request.user, 'teacher_profile'):
+        teacher = request.user.teacher_profile
+        if group.teacher != teacher and not request.user.is_superuser:
+            messages.error(request, 'У вас нет доступа')
+            return redirect('teacher-dashboard')
+    
+    if request.method == 'POST':
+        form = PerformanceForm(request.POST, group=group)
+        if form.is_valid():
+            performance = form.save(commit=False)
+            performance.group = group
+            performance.save()
+            messages.success(request, f'Оценка для {student.get_full_name()} выставлена!')
+            return redirect('student-detail', student_id=student.id)
+    else:
+        form = PerformanceForm(group=group, initial={'student': student})
+    
+    data = {
+        'title': f'Выставление оценки: {student.get_full_name()}',
+        'form': form,
+        'group': group,
+        'student': student,
+    }
+    return render(request, 'education/performance_form.html', data)
+
+
+@login_required
+def performance_group_report(request, group_id):
+    """Отчет по успеваемости группы"""
+    group = get_object_or_404(Group.objects.select_related('course'), id=group_id)
+    
+    # Получаем студентов и их оценки
+    students = Student.objects.filter(
+        enrollments__group=group,
+        enrollments__is_active=True
+    ).distinct().prefetch_related('performance').order_by('last_name', 'first_name')
+    
+    student_performance = []
+    for student in students:
+        performances = student.performance.filter(group=group).order_by('-date')
+        avg_grade = calculate_average_grade(performances)
+        
+        student_performance.append({
+            'student': student,
+            'performances': performances,
+            'avg_grade': avg_grade,
+            'total_grades': performances.count(),
+        })
+    
+    data = {
+        'title': f'Успеваемость группы: {group.name}',
+        'group': group,
+        'student_performance': student_performance,
+    }
+    return render(request, 'education/performance_report.html', data)
+
+
+@login_required
+@student_required
+def student_performance(request):
+    """Просмотр своей успеваемости студентом"""
+    student = request.user.student_profile
+    
+    performances = Performance.objects.filter(
+        student=student
+    ).select_related('group__course').order_by('-date')
+    
+    # Группируем по курсам
+    by_course = {}
+    for perf in performances:
+        course_id = perf.group.course_id
+        if course_id not in by_course:
+            by_course[course_id] = {
+                'course': perf.group.course,
+                'performances': [],
+            }
+        by_course[course_id]['performances'].append(perf)
+    
+    # Считаем средние баллы
+    for course_id, data in by_course.items():
+        data['avg_grade'] = calculate_average_grade(data['performances'])
+        data['total'] = len(data['performances'])
+    
+    data = {
+        'title': f'Моя успеваемость - {student.get_full_name()}',
+        'student': student,
+        'by_course': by_course,
+        'total_performances': performances.count(),
+    }
+    return render(request, 'education/student_performance.html', data)
+
+
+def calculate_average_grade(performances):
+    """Вычисление среднего балла"""
+    if not performances:
+        return None
+    
+    # Простая конвертация для числовых оценок
+    grade_values = []
+    for p in performances:
+        grade = p.grade
+        try:
+            if grade.isdigit():
+                grade_values.append(int(grade))
+            elif grade in ['отлично', '5']:
+                grade_values.append(5)
+            elif grade in ['хорошо', '4']:
+                grade_values.append(4)
+            elif grade in ['удовлетворительно', '3']:
+                grade_values.append(3)
+            elif grade in ['неудовлетворительно', '2']:
+                grade_values.append(2)
+            elif grade in ['зачет']:
+                grade_values.append(5)
+            elif grade in ['незачет']:
+                grade_values.append(2)
+        except (ValueError, AttributeError):
+            pass
+    
+    if grade_values:
+        return round(sum(grade_values) / len(grade_values), 2)
+    return None

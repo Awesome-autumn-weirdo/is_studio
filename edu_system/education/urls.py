@@ -47,6 +47,17 @@ urlpatterns = [
     path('schedule/<int:schedule_id>/update/', views.schedule_update, name='schedule-update'),
     path('schedule/<int:schedule_id>/delete/', views.schedule_delete, name='schedule-delete'),
     path('schedule/group/<int:group_id>/', views.group_schedule_detail, name='group-schedule'),
+
+    # Посещаемость
+    path('attendance/mark/<int:schedule_id>/', views.attendance_mark, name='attendance-mark'),
+    path('attendance/group/<int:group_id>/', views.attendance_group_report, name='attendance-group-report'),
+    path('attendance/my/', views.student_attendance, name='student-attendance'),
+    
+    # Успеваемость
+    path('performance/group/<int:group_id>/add/', views.performance_add, name='performance-add'),
+    path('performance/group/<int:group_id>/student/<int:student_id>/', views.performance_single_add, name='performance-single-add'),
+    path('performance/group/<int:group_id>/report/', views.performance_group_report, name='performance-group-report'),
+    path('performance/my/', views.student_performance, name='student-performance'),
     
     # Записи на курсы
     path('enrollment/create/', views.enrollment_create, name='enrollment-create'),

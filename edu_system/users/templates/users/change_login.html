@@ -5,6 +5,10 @@
 {% block content %}
     <h1>{{ title }}</h1>
     
+    <div class="help-info">
+        <p>Текущий логин: <strong>{{ user.username }}</strong></p>
+    </div>
+    
     <form method="post" class="auth-form">
         {% csrf_token %}
         
@@ -12,6 +16,9 @@
         <div class="form-group">
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}
+            {% if field.help_text %}
+            <small class="help-text">{{ field.help_text }}</small>
+            {% endif %}
             {% if field.errors %}
             <div class="error-list">{{ field.errors }}</div>
             {% endif %}
@@ -19,11 +26,8 @@
         {% endfor %}
         
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Войти</button>
-            <a href="{% url 'register' %}" class="btn btn-secondary">Регистрация</a>
+            <button type="submit" class="btn btn-primary">Сменить логин</button>
+            <a href="{% url 'profile' %}" class="btn btn-secondary">Отмена</a>
         </div>
-        <p class="forgot-link">
-            <a href="{% url 'forgot-password' %}">Забыли пароль?</a>
-        </p>
     </form>
 {% endblock %}

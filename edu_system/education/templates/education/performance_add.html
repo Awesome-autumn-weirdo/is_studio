@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <p><strong>Курс:</strong> {{ group.course.title }}</p>
+        <p><strong>Преподаватель:</strong> {{ group.teacher.get_full_name|default:"Не назначен" }}</p>
+    </div>
+    
+    {% if students %}
+    <form method="post" class="performance-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="grade_date">Дата выставления:</label>
+            <input type="date" name="grade_date" id="grade_date" value="{{ today|date:'Y-m-d' }}">
+        </div>
+        
+        <table class="performance-mark-table">
+            <thead>
+                <tr>
+                    <th>Студент</th>
+                    <th>Оценка</th>
+                    <th>Комментарий</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td class="student-name">
+                        {{ student.get_full_name }}
+                    </td>
+                    <td class="grade-input">
+                        <select name="grade_{{ student.id }}" class="grade-selector">
+                            <option value="">-- Не оценивался --</option>
+                            <option value="5">5 (Отлично)</option>
+                            <option value="4">4 (Хорошо)</option>
+                            <option value="3">3 (Удовлетворительно)</option>
+                            <option value="2">2 (Неудовлетворительно)</option>
+                            <option value="зачет">Зачет</option>
+                            <option value="незачет">Незачет</option>
+                        </select>
+                    </td>
+                    <td class="comment-input">
+                        <textarea name="comment_{{ student.id }}" 
+                                  rows="2" 
+                                  placeholder="Комментарий"></textarea>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Сохранить оценки</button>
+            <a href="{% url 'group-detail' group.id %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+    {% else %}
+    <div class="empty-state">
+        <p>В этой группе нет студентов.</p>
+        <a href="{% url 'group-detail' group.id %}" class="btn">← Назад к группе</a>
+    </div>
+    {% endif %}
+{% endblock %}

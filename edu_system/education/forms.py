@@ -1,12 +1,16 @@
+import random
+import string
+
 from django import forms
 from django.core.validators import MinValueValidator, MaxValueValidator, EmailValidator
 from .models import (
-    Course, Category, Teacher, Student, Group, 
+    Course, Category, Teacher, Student, Group as EduGroup, 
     Enrollment, Schedule, Attendance, Performance, Review
 )
 from datetime import date
-
+from django.contrib.auth.models import User, Group as AuthGroup
 from django.core.exceptions import ValidationError
+
 
 
 class CourseForm(forms.ModelForm):
@@ -49,11 +53,29 @@ class CategoryForm(forms.ModelForm):
 
 
 class TeacherForm(forms.ModelForm):
-    """Форма для создания и редактирования преподавателей"""
+    """Форма для добавления преподавателя (с автосозданием пользователя)"""
+    
+    # Поля для создания пользователя
+    username = forms.CharField(
+        max_length=50,
+        required=False,
+        label='Логин',
+        help_text='Оставьте пустым для автоматической генерации'
+    )
+    password = forms.CharField(
+        max_length=50,
+        required=False,
+        label='Пароль',
+        widget=forms.PasswordInput(),
+        help_text='Оставьте пустым для автоматической генерации'
+    )
+    
     class Meta:
         model = Teacher
-        fields = ['first_name', 'last_name', 'middle_name', 'specialization', 
-                  'phone', 'email', 'bio', 'photo', 'is_active']
+        fields = [
+            'first_name', 'last_name', 'middle_name', 'specialization',
+            'phone', 'email', 'bio', 'photo', 'is_active'
+        ]
         widgets = {
             'bio': forms.Textarea(attrs={'rows': 4}),
         }
@@ -68,31 +90,111 @@ class TeacherForm(forms.ModelForm):
             'photo': 'Фото',
             'is_active': 'Активен',
         }
+    
+    def clean_email(self):
+        """Проверка уникальности email"""
+        email = self.cleaned_data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            # Проверяем, не принадлежит ли email этому преподавателю
+            if not self.instance.pk or self.instance.user.email != email:
+                raise forms.ValidationError('Пользователь с таким email уже существует')
+        return email
+    
+    def save(self, commit=True):
+        teacher = super().save(commit=False)
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+        email = self.cleaned_data.get('email', '')
+        
+        if not username and teacher.last_name:
+            username = self.generate_username(teacher.last_name)
+        
+        # Сохраняем сгенерированный пароль
+        if not password:
+            password = self.generate_password()
+        
+        # Сохраняем данные для входа в объекте формы
+        self.generated_username = username
+        self.generated_password = password
+        
+        if not email:
+            email = f"{username}@studio.ru"
+        
+        # Создаем пользователя
+        if teacher.user:
+            user = teacher.user
+            user.username = username
+            user.email = email
+            user.first_name = teacher.first_name
+            user.last_name = teacher.last_name
+            user.set_password(password)
+            user.save()
+        else:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=teacher.first_name,
+                last_name=teacher.last_name
+            )
+        
+        teacher.user = user
+        
+        if commit:
+            teacher.save()
+            # Добавляем в группу
+            teacher_group = AuthGroup.objects.get_or_create(name='Преподаватели')[0]
+            user.groups.add(teacher_group)
+        
+        return teacher
+    
+    def generate_username(self, last_name):
+        """Генерация уникального логина"""
+        base = last_name.lower().replace(' ', '_')
+        while True:
+            suffix = ''.join(random.choices(string.digits, k=4))
+            username = f"teacher_{base}_{suffix}"
+            if not User.objects.filter(username=username).exists():
+                return username
+    
+    def generate_password(self):
+        """Генерация случайного пароля"""
+        chars = string.ascii_letters + string.digits
+        return ''.join(random.choices(chars, k=12))
 
-        def clean_photo(self):
-            """Проверка размера фото в форме"""
-            photo = self.cleaned_data.get('photo')
-            
-            if photo:
-                # Проверка размера (5 МБ)
-                if photo.size > 5 * 1024 * 1024:
-                    raise ValidationError('Размер файла не должен превышать 5 МБ')
+    def clean_photo(self):
+                """Проверка размера фото в форме"""
+                photo = self.cleaned_data.get('photo')
                 
-                # Проверка расширения
-                allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
-                ext = str(photo.name).lower()
-                if not any(ext.endswith(ext_allowed) for ext_allowed in allowed_extensions):
-                    raise ValidationError('Поддерживаются только форматы: JPG, PNG, GIF')
-            
-            return photo
+                if photo:
+                    # Проверка размера (5 МБ)
+                    if photo.size > 5 * 1024 * 1024:
+                        raise ValidationError('Размер файла не должен превышать 5 МБ')
+                    
+                    # Проверка расширения
+                    allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
+                    ext = str(photo.name).lower()
+                    if not any(ext.endswith(ext_allowed) for ext_allowed in allowed_extensions):
+                        raise ValidationError('Поддерживаются только форматы: JPG, PNG, GIF')
+                
+                return photo
 
 
 class StudentForm(forms.ModelForm):
-    """Форма для регистрации студентов"""
+    """Форма для регистрации студента (с автосозданием пользователя)"""
+    username = forms.CharField(
+        max_length=50, required=False, label='Логин',
+        help_text='Оставьте пустым для автоматической генерации'
+    )
+    password = forms.CharField(
+        max_length=50, required=False, label='Пароль',
+        widget=forms.PasswordInput(),
+        help_text='Оставьте пустым для автоматической генерации'
+    )
+    
     class Meta:
         model = Student
-        fields = ['first_name', 'last_name', 'middle_name', 'phone', 
-                  'email', 'birth_date']
+        fields = ['first_name', 'last_name', 'middle_name', 'phone', 'email', 'birth_date']
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -104,12 +206,61 @@ class StudentForm(forms.ModelForm):
             'email': 'Email',
             'birth_date': 'Дата рождения',
         }
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError('Пользователь с таким email уже существует')
+        return email
+    
+    def save(self, commit=True):
+        student = super().save(commit=False)
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+        
+        if not username:
+            username = self._generate_username(student.last_name)
+        if not password:
+            password = self._generate_password()
+        
+        # Сохраняем для отображения
+        self.generated_username = username
+        self.generated_password = password
+        
+        user = User.objects.create_user(
+            username=username,
+            email=student.email,
+            password=password,
+            first_name=student.first_name,
+            last_name=student.last_name
+        )
+        
+        student.user = user
+        
+        if commit:
+            student.save()
+            # Добавляем в группу
+            student_group = AuthGroup.objects.get_or_create(name='Студенты')[0]
+            user.groups.add(student_group)
+        
+        return student
+    
+    def _generate_username(self, last_name):
+        base = last_name.lower().replace(' ', '_')
+        while True:
+            suffix = ''.join(random.choices(string.digits, k=4))
+            username = f"{base}_{suffix}"
+            if not User.objects.filter(username=username).exists():
+                return username
+    
+    def _generate_password(self):
+        return ''.join(random.choices(string.ascii_letters + string.digits, k=12))
 
 
 class GroupForm(forms.ModelForm):
     """Форма для создания и редактирования групп"""
     class Meta:
-        model = Group
+        model = EduGroup
         fields = ['course', 'teacher', 'name', 'start_date', 'end_date', 
                   'format', 'max_students', 'is_active']
         widgets = {
@@ -188,27 +339,55 @@ class ScheduleForm(forms.ModelForm):
 
 
 class AttendanceForm(forms.ModelForm):
-    """Форма для отметки посещаемости"""
+    """Форма для отметки посещаемости одного студента"""
     class Meta:
         model = Attendance
-        fields = ['student', 'status', 'note']
+        fields = ['status', 'note']
+        widgets = {
+            'note': forms.TextInput(attrs={'placeholder': 'Примечание (необязательно)'}),
+        }
         labels = {
-            'student': 'Студент',
             'status': 'Статус',
             'note': 'Примечание',
         }
 
 
+class AttendanceBulkForm(forms.Form):
+    """Форма для массовой отметки посещаемости"""
+    pass  # Поля создаются динамически
+
+
 class PerformanceForm(forms.ModelForm):
-    """Форма для выставления оценок"""
+    """Форма для выставления оценки"""
     class Meta:
         model = Performance
         fields = ['student', 'grade', 'comment']
+        widgets = {
+            'comment': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Комментарий (необязательно)'}),
+        }
         labels = {
             'student': 'Студент',
             'grade': 'Оценка',
             'comment': 'Комментарий',
         }
+    
+    def __init__(self, *args, **kwargs):
+        group = kwargs.pop('group', None)
+        super().__init__(*args, **kwargs)
+        if group:
+            self.fields['student'].queryset = Student.objects.filter(
+                enrollments__group=group,
+                enrollments__is_active=True
+            ).distinct()
+
+
+class PerformanceBulkForm(forms.Form):
+    """Форма для массового выставления оценок группе"""
+    date = forms.DateField(
+        label='Дата выставления',
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False
+    )
 
 
 class ReviewForm(forms.ModelForm):
