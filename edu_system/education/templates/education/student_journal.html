@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <a href="{% url 'student-dashboard' %}" class="btn">← В личный кабинет</a>
+    </div>
+    
+    {% if courses_data %}
+    <div class="student-journal">
+        {% for data in courses_data %}
+        <div class="course-journal-card">
+            <h2>
+                <a href="{{ data.course.get_absolute_url }}">{{ data.course.title }}</a>
+                <span class="group-badge">{{ data.group.name }}</span>
+            </h2>
+            
+            <!-- Посещаемость -->
+            <div class="journal-row">
+                <div class="journal-section">
+                    <h3>📅 Посещаемость</h3>
+                    
+                    <div class="attendance-summary">
+                        <div class="big-stat">
+                            <span class="big-number">{{ data.attendance_rate|floatformat:0 }}%</span>
+                            <span class="big-label">посещаемость</span>
+                        </div>
+                        <div class="stat-details">
+                            <span>✅ Присутствовал: {{ data.present_count }} из {{ data.total_lessons }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if data.attendances %}
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Тема</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for att in data.attendances %}
+                            <tr>
+                                <td>{{ att.schedule.date|date:"d.m.Y" }}</td>
+                                <td>{{ att.schedule.topic|default:"—"|truncatechars:20 }}</td>
+                                <td>
+                                    <span class="attendance-status status-{{ att.status }}">
+                                        {{ att.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+                
+                <!-- Оценки -->
+                <div class="journal-section">
+                    <h3>📊 Оценки</h3>
+                    
+                    {% if data.performances %}
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Оценка</th>
+                                <th>Комментарий</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for perf in data.performances %}
+                            <tr>
+                                <td>{{ perf.date|date:"d.m.Y" }}</td>
+                                <td>
+                                    <span class="grade grade-{{ perf.grade|lower }}">{{ perf.grade }}</span>
+                                </td>
+                                <td>{{ perf.comment|default:"—"|truncatechars:30 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="empty-message">Оценок пока нет</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>Вы не записаны ни на один активный курс.</p>
+        <a href="{% url 'courses-list' %}" class="btn">Выбрать курс</a>
+    </div>
+    {% endif %}
+{% endblock %}

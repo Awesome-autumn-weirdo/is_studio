@@ -1,29 +1,61 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}Отзывы наших студентов{% endblock %}
 
 {% block content %}
-    <h1>{{ title }}</h1>
+    <h1>💬 Отзывы наших студентов</h1>
+    
+    <div class="add-review-btn-wrapper">
+        <a href="{% url 'review-create' %}" class="add-review-btn">✍️ Оставить отзыв</a>
+    </div>
     
     {% if reviews %}
     <div class="reviews-list">
         {% for review in reviews %}
-        <div class="review-item">
+        <div class="review-card {% if not review.is_approved %}review-pending{% endif %}">
             <div class="review-header">
-                <span class="author">{{ review.student.get_full_name }}</span>
-                <span class="course">Курс: <a href="{{ review.course.get_absolute_url }}">{{ review.course.title }}</a></span>
-                <span class="rating">Оценка: {{ review.rating }}/5</span>
-                <span class="date">{{ review.review_date|date:"d.m.Y" }}</span>
+                <span class="review-course">
+                    <a href="{{ review.course.get_absolute_url }}">{{ review.course.title }}</a>
+                </span>
+                
+                <span class="review-rating" title="Оценка {{ review.rating }}/5">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
+                    {% endfor %}
+                </span>
+                
+                <span class="review-date">{{ review.review_date|date:"d.m.Y" }}</span>
+                
+                {% if not review.is_approved %}
+                <span class="review-badge pending">⏳ На модерации</span>
+                {% else %}
+                <span class="review-badge approved">✅ Проверено</span>
+                {% endif %}
             </div>
+            
+            <p class="review-author">
+                <strong>{{ review.student.get_full_name }}</strong>
+            </p>
+            
             <p class="review-comment">{{ review.comment }}</p>
+            
+            {% if user.is_superuser or 'Администраторы' in user_groups or 'Маркетологи' in user_groups %}
+            <div class="review-footer">
+                <div class="review-admin-actions">
+                    {% if not review.is_approved %}
+                    <a href="{% url 'review-approve' review.id %}" class="btn btn-small btn-success">✅ Одобрить</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <p>Пока нет отзывов.</p>
+    <div class="empty-state">
+        <p>📝 Пока нет ни одного отзыва.</p>
+        <p>Станьте первым, кто оставит отзыв!</p>
+        <a href="{% url 'review-create' %}" class="add-review-btn">✍️ Оставить отзыв</a>
+    </div>
     {% endif %}
-    
-    <p class="back-link">
-        <a href="{% url 'education-home' %}" class="btn">← На главную</a>
-    </p>
 {% endblock %}

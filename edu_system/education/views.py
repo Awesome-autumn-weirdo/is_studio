@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.db.models import Q, Count, Avg
 from django.contrib import messages
 from django.urls import reverse_lazy
@@ -8,9 +8,9 @@ from django.db.models import Q, Count, Avg, Min, Max, Sum
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.conf import settings
-
+from django.db.models import Prefetch
 from django.utils import timezone
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from .decorators import teacher_required, admin_required, student_required
 
 from .models import (
@@ -23,6 +23,165 @@ from .forms import (
     PerformanceForm, ReviewForm, CourseFilterForm
 )
 from .decorators import admin_required, teacher_required, student_required
+from django.views.decorators.http import require_POST
+import json
+
+
+@login_required
+@teacher_required
+def group_journal(request, group_id):
+    group = get_object_or_404(
+        Group.objects.select_related('course', 'teacher'),
+        id=group_id
+    )
+
+    teacher = request.user.teacher_profile
+    if group.teacher != teacher and not request.user.is_superuser:
+        messages.error(request, 'Нет доступа')
+        return redirect('teacher-dashboard')
+
+    students = list(
+        Student.objects.filter(
+            enrollments__group=group,
+            enrollments__is_active=True
+        )
+        .distinct()
+        .order_by('last_name', 'first_name')
+    )
+
+    schedules = list(
+        group.schedule.all()
+        .order_by('-date', '-time')[:20]
+    )
+
+    attendances = Attendance.objects.filter(
+        schedule__in=schedules,
+        student__in=students
+    )
+
+    attendance_map = {
+        (a.student_id, a.schedule_id): a
+        for a in attendances
+    }
+
+    performances = Performance.objects.filter(
+        student__in=students,
+        group=group
+    ).order_by('-date')
+
+    perf_map = {}
+    for p in performances:
+        perf_map.setdefault(p.student_id, []).append(p)
+
+    journal_data = []
+
+    for student in students:
+        student_att = {}
+        present_count = 0
+
+        for schedule in schedules:
+            att = attendance_map.get((student.id, schedule.id))
+            student_att[schedule.id] = att
+            if att and att.status == 'present':
+                present_count += 1
+
+        journal_data.append({
+            'student': student,
+            'attendances': student_att,
+            'performances': perf_map.get(student.id, [])[:5],
+            'present_count': present_count,
+            'total': len(schedules),
+        })
+
+    return render(request, 'education/group_journal.html', {
+        'title': f'Журнал: {group.name}',
+        'group': group,
+        'journal_data': journal_data,
+        'schedules': schedules,
+    })
+
+
+@login_required
+@teacher_required
+@require_POST
+def attendance_bulk(request):
+    data = json.loads(request.body)
+
+    schedule_ids = {item['schedule_id'] for item in data}
+    schedules = Schedule.objects.filter(id__in=schedule_ids)
+
+    # Проверка доступа
+    for s in schedules:
+        if s.group.teacher != request.user.teacher_profile:
+            return JsonResponse({'error': 'Доступ запрещен'}, status=403)
+
+    objs = [
+        Attendance(
+            schedule_id=item['schedule_id'],
+            student_id=item['student_id'],
+            status=item['status']
+        )
+        for item in data
+    ]
+
+    Attendance.objects.bulk_create(
+        objs,
+        update_conflicts=True,
+        unique_fields=['schedule', 'student'],
+        update_fields=['status']
+    )
+
+    return JsonResponse({'success': True})
+
+
+@login_required
+def student_journal(request):
+    """Журнал для студента: его посещаемость и оценки по всем курсам"""
+    student = request.user.student_profile
+    
+    # Получаем активные записи
+    enrollments = student.enrollments.filter(
+        is_active=True
+    ).select_related('group__course').prefetch_related(
+        'group__schedule'
+    )
+    
+    courses_data = []
+    
+    for enrollment in enrollments:
+        group = enrollment.group
+        
+        # Посещаемость
+        total_lessons = group.schedule.count()
+        attendances = Attendance.objects.filter(
+            student=student,
+            schedule__group=group
+        )
+        
+        present_count = attendances.filter(status='present').count()
+        attendance_rate = (present_count / total_lessons * 100) if total_lessons > 0 else 0
+        
+        # Оценки
+        performances = Performance.objects.filter(
+            student=student,
+            group=group
+        ).order_by('-date')[:10]
+        
+        courses_data.append({
+            'course': group.course,
+            'group': group,
+            'total_lessons': total_lessons,
+            'present_count': present_count,
+            'attendance_rate': attendance_rate,
+            'attendances': attendances.order_by('-schedule__date')[:10],
+            'performances': performances,
+        })
+    
+    data = {
+        'title': f'Мой журнал - {student.get_full_name()}',
+        'courses_data': courses_data,
+    }
+    return render(request, 'education/student_journal.html', data)
 
 
 def course_detail(request, course_id):
@@ -695,11 +854,15 @@ def review_create(request):
         form = ReviewForm(request.POST)
         if form.is_valid():
             review = form.save(commit=False)
-            # Привязываем текущего пользователя-студента
+            # Привязываем студента
             if hasattr(request.user, 'student_profile'):
                 review.student = request.user.student_profile
+            
+            # Автоматически одобряем отзыв
+            review.is_approved = True
+            
             review.save()
-            messages.success(request, 'Спасибо за ваш отзыв!')
+            messages.success(request, 'Спасибо за ваш отзыв! Он опубликован.')
             return redirect('course-detail-slug', course_slug=review.course.slug)
     else:
         form = ReviewForm()

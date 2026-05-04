@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load education_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+<script>
+let buffer = [];
+
+function markCell(cell, scheduleId, studentId) {
+    const statuses = ["", "present", "late", "absent", "excused"];
+
+    let current = cell.dataset.status || "";
+    let index = statuses.indexOf(current);
+    let next = statuses[(index + 1) % statuses.length];
+
+    cell.dataset.status = next;
+
+    buffer.push({
+        student_id: studentId,
+        schedule_id: scheduleId,
+        status: next
+    });
+
+    debounceSend();
+}
+
+let timeout = null;
+
+function debounceSend() {
+    clearTimeout(timeout);
+    timeout = setTimeout(sendBatch, 500);
+}
+
+function sendBatch() {
+    if (!buffer.length) return;
+
+    fetch("/education/attendance/bulk/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify(buffer)
+    });
+
+    buffer = [];
+}
+</script>
+
+<div class="journal-page modern-journal">
+
+    <!-- Header -->
+    <div class="journal-header">
+        <div>
+            <h1>{{ title }}</h1>
+            <div class="meta">
+                <span>{{ group.course.title }}</span>
+                <span>• {{ group.teacher.get_full_name|default:"—" }}</span>
+                <span>• {{ journal_data|length }} студентов</span>
+            </div>
+        </div>
+
+        <div class="journal-actions">
+            <a href="{% url 'performance-add' group.id %}" class="btn btn-success">Оценки</a>
+            <a href="{% url 'attendance-group-report' group.id %}" class="btn">Отчет</a>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="journal-table-wrapper">
+        <table class="journal-table journal-grid">
+
+            <thead>
+                <tr>
+                    <th class="sticky-col">Студент</th>
+
+                    {% for schedule in schedules %}
+                        <th class="lesson-col">
+                            <div>{{ schedule.date|date:"d.m" }}</div>
+                            <small>{{ schedule.time|time:"H:i" }}</small>
+                        </th>
+                    {% endfor %}
+
+                    <th>%</th>
+                    <th>Оценки</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for row in journal_data %}
+                <tr>
+                    <!-- Student -->
+                    <td class="student sticky-col">
+                        {{ row.student.get_full_name }}
+                    </td>
+
+                    <!-- Attendance -->
+                    {% for schedule in schedules %}
+                        {% with att=row.attendances|get_item:schedule.id %}
+                        <td class="cell"
+                            data-status="{{ att.status|default:'' }}"
+                            onclick="markCell(this, {{ schedule.id }}, {{ row.student.id }})"
+                            title="{{ att.status|default:'Нет данных' }}">
+                        </td>
+                        {% endwith %}
+                    {% endfor %}
+
+                    <!-- % -->
+                    <td class="percent">
+                        {{ row.attendances|length|floatformat:0 }}%
+                    </td>
+
+                    <!-- Grades -->
+                    <td class="grades">
+                        {% for perf in row.performances %}
+                            <span class="grade">{{ perf.grade }}</span>
+                        {% empty %}
+                            —
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+</div>
+{% endblock %}

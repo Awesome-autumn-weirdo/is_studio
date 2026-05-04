@@ -34,11 +34,13 @@ urlpatterns = [
     path('group/<int:group_id>/', views.group_detail, name='group-detail'),
     path('group/<int:group_id>/update/', views.group_update, name='group-update'),
     path('group/<int:group_id>/delete/', views.group_delete, name='group-delete'),
+    path('group/<int:group_id>/journal/', views.group_journal, name='group-journal'),
 
     # Студенты
     path('students/', views.students_list, name='students-list'),
     path('student/register/', views.student_register, name='student-register'),
     path('student/<int:student_id>/', views.student_detail, name='student-detail'),
+    path('student/journal/', views.student_journal, name='student-journal'),
 
     # Расписание
     path('schedule/', views.schedule_list, name='schedule-list'),
@@ -52,6 +54,7 @@ urlpatterns = [
     path('attendance/mark/<int:schedule_id>/', views.attendance_mark, name='attendance-mark'),
     path('attendance/group/<int:group_id>/', views.attendance_group_report, name='attendance-group-report'),
     path('attendance/my/', views.student_attendance, name='student-attendance'),
+    path('attendance/bulk/', views.attendance_bulk, name='attendance-bulk'),
     
     # Успеваемость
     path('performance/group/<int:group_id>/add/', views.performance_add, name='performance-add'),

@@ -9,14 +9,17 @@
         <div class="page-header">
             <h1>{{ group.name }}</h1>
             <div class="action-buttons">
-                {% if is_admin %}
+                {% if user.is_superuser or 'Администраторы' in user_groups %}
                 <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-success">📝 Записать студента</a>
+                <a href="{% url 'schedule-create' %}?group={{ group.id }}" class="btn btn-primary">📅 Добавить занятие</a>
                 <a href="{% url 'group-update' group.id %}" class="btn btn-edit">✏️ Редактировать</a>
                 <a href="{% url 'group-delete' group.id %}" class="btn btn-danger">🗑️ Удалить</a>
                 {% endif %}
-                <a href="{% url 'attendance-group-report' group.id %}" class="btn">📋 Отчет по посещаемости</a>
-                <a href="{% url 'performance-group-report' group.id %}" class="btn">📊 Отчет по успеваемости</a>
-                <a href="{% url 'performance-add' group.id %}" class="btn btn-success">✏️ Выставить оценки</a>
+                
+                {% if user.is_superuser or 'Преподаватели' in user_groups %}
+                <a href="{% url 'group-journal' group.id %}" class="btn btn-primary btn-large">📒 Журнал группы</a>
+                <a href="{% url 'performance-add' group.id %}" class="btn btn-success">📊 Выставить оценки</a>
+                {% endif %}
             </div>
         </div>
         
@@ -78,7 +81,9 @@
                         <th>Телефон</th>
                         <th>Дата записи</th>
                         <th>Статус</th>
+                        {% if user.is_superuser or 'Администраторы' in user_groups %}
                         <th>Действия</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -99,6 +104,7 @@
                             <span class="badge badge-inactive">Завершена</span>
                             {% endif %}
                         </td>
+                        {% if user.is_superuser or 'Администраторы' in user_groups %}
                         <td class="actions">
                             <form method="post" action="{% url 'enrollment-delete' enrollment.id %}" 
                                   onsubmit="return confirm('Отменить запись студента?');" 
@@ -107,6 +113,7 @@
                                 <button type="submit" class="btn btn-small btn-danger">❌ Отменить</button>
                             </form>
                         </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -114,7 +121,7 @@
             {% else %}
             <div class="empty-state">
                 <p>В этой группе пока нет студентов.</p>
-                {% if is_admin %}
+                {% if user.is_superuser or 'Администраторы' in user_groups %}
                 <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-success">
                     📝 Записать первого студента
                 </a>
@@ -135,6 +142,7 @@
                         <th>Время</th>
                         <th>Аудитория</th>
                         <th>Тема</th>
+                        <th>Статус</th>
                         <th>Действия</th>
                     </tr>
                 </thead>
@@ -145,22 +153,36 @@
                         <td>{{ lesson.time|time:"H:i" }}</td>
                         <td>{{ lesson.classroom }}</td>
                         <td>{{ lesson.topic|default:"—" }}</td>
+                        <td>
+                            {% with att_count=lesson.attendance.count %}
+                            {% if att_count > 0 %}
+                            <span class="badge badge-success">Отмечено ({{ att_count }})</span>
+                            {% else %}
+                            <span class="badge badge-warning">Не отмечено</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
                         <td class="actions">
-                            <a href="#" class="btn btn-small">📋 Посещаемость</a>
+                            {% if user.is_superuser or 'Преподаватели' in user_groups %}
+                            <a href="{% url 'attendance-mark' lesson.id %}" class="btn btn-small btn-success">📋 Отметить</a>
+                            <a href="{% url 'schedule-update' lesson.id %}" class="btn btn-small btn-edit">✏️</a>
+                            <a href="{% url 'schedule-delete' lesson.id %}" class="btn btn-small btn-danger">🗑️</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             {% else %}
-            <p class="empty-message">Расписание пока не составлено.</p>
-            {% endif %}
-            
-            <div class="add-schedule">
-                {% if is_admin %}
+            <div class="empty-state">
+                <p>Расписание пока не составлено.</p>
+                {% if user.is_superuser or 'Администраторы' in user_groups %}
                 <a href="{% url 'schedule-create' %}?group={{ group.id }}" class="btn btn-primary">➕ Добавить занятие</a>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
         
         <!-- Успеваемость -->
@@ -198,11 +220,12 @@
             <p class="empty-message">Оценки пока не выставлены.</p>
             {% endif %}
             
+            {% if user.is_superuser or 'Преподаватели' in user_groups %}
             <div class="add-performance">
-                {% if is_teacher %}
-                <a href="#" class="btn btn-primary">➕ Выставить оценку</a>
-                {% endif %}
+                <a href="{% url 'performance-add' group.id %}" class="btn btn-success">➕ Выставить оценки</a>
+                <a href="{% url 'performance-group-report' group.id %}" class="btn btn-secondary">📊 Отчет по успеваемости</a>
             </div>
+            {% endif %}
         </div>
         
         <!-- Навигация -->

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <div class="action-buttons">
+            <a href="{% url 'group-detail' group.id %}" class="btn">← К группе</a>
+            <a href="{% url 'schedule-create' %}?group={{ group.id }}" class="btn btn-success">➕ Добавить занятие</a>
+            {% if schedules %}
+            <a href="{% url 'attendance-mark' schedules.0.id %}" class="btn btn-primary">📋 Отметить посещаемость</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="schedule-info">
+        <p><strong>Курс:</strong> {{ group.course.title }}</p>
+        <p><strong>Группа:</strong> {{ group.name }}</p>
+        <p><strong>Преподаватель:</strong> {{ group.teacher.get_full_name|default:"Не назначен" }}</p>
+        <p><strong>Формат:</strong> {{ group.get_format_display }}</p>
+        <p><strong>Период:</strong> {{ group.start_date|date:"d.m.Y" }} — {{ group.end_date|date:"d.m.Y" }}</p>
+        <p><strong>Всего занятий:</strong> {{ schedules|length }}</p>
+    </div>
+    
+    {% if schedules %}
+    <div class="schedule-list">
+        {% regroup schedules by date as date_list %}
+        
+        {% for date in date_list %}
+        <div class="schedule-day">
+            <h3 class="schedule-date">
+                📅 {{ date.grouper|date:"d.m.Y" }} ({{ date.grouper|date:"l" }})
+                <span class="lesson-count">{{ date.list|length }} занятий</span>
+            </h3>
+            
+            <div class="schedule-cards">
+                {% for lesson in date.list %}
+                <div class="schedule-card">
+                    <div class="schedule-card-header">
+                        <span class="lesson-time">🕐 {{ lesson.time|time:"H:i" }}</span>
+                        <span class="lesson-classroom">📍 {{ lesson.classroom }}</span>
+                        
+                        {% with attendance_count=lesson.attendance.count %}
+                        {% if attendance_count > 0 %}
+                        <span class="badge badge-success">✅ Отмечено ({{ attendance_count }})</span>
+                        {% else %}
+                        <span class="badge badge-warning">⚠️ Не отмечено</span>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    
+                    {% if lesson.topic %}
+                    <div class="schedule-topic">
+                        <strong>Тема:</strong> {{ lesson.topic }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="schedule-card-actions">
+                        <a href="{% url 'attendance-mark' lesson.id %}" class="btn btn-small btn-success">
+                            📋 Отметить посещаемость
+                        </a>
+                        <a href="{% url 'schedule-update' lesson.id %}" class="btn btn-small btn-edit">✏️</a>
+                        <a href="{% url 'schedule-delete' lesson.id %}" class="btn btn-small btn-danger">🗑️</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>📅 Расписание для этой группы пока не составлено.</p>
+        <p>Добавьте занятия, чтобы отмечать посещаемость и выставлять оценки.</p>
+        <a href="{% url 'schedule-create' %}?group={{ group.id }}" class="btn btn-success btn-large">
+            ➕ Добавить первое занятие
+        </a>
+    </div>
+    {% endif %}
+    
+    <div class="group-schedule-navigation">
+        <a href="{% url 'group-detail' group.id %}" class="btn">← К группе</a>
+        <a href="{% url 'schedule-list' %}" class="btn">📋 Общее расписание</a>
+        {% if user.is_superuser or 'Преподаватели' in user_groups %}
+        <a href="{% url 'group-journal' group.id %}" class="btn btn-primary">📒 Журнал группы</a>
+        {% endif %}
+    </div>
+{% endblock %}
