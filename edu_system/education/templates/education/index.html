@@ -16,7 +16,15 @@
             <div class="category-card">
                 <h3><a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a></h3>
                 <p>{{ cat.description|truncatewords:15 }}</p>
-                <p><strong>{{ cat.course_count }}</strong> {{ cat.course_count|pluralize:"курс,курса,курсов" }}</p>
+                <p><strong>{{ cat.course_count }}</strong> 
+                    {% if cat.course_count == 1 %}
+                        курс
+                    {% elif cat.course_count >= 2 and cat.course_count <= 4 %}
+                        курса
+                    {% else %}
+                        курсов
+                    {% endif %}
+                </p>
             </div>
             {% endfor %}
         </div>

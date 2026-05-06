@@ -5,62 +5,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Студия дополнительного образования{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'education/css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'education/css/styles.css' %}?v=1234">
 </head>
 <body>
     <header>
         <div class="container">
-            <h1><a href="{% url 'education-home' %}">Студия "Знание"</a></h1>
+            <div class="header-top">
+                <h1><a href="{% url 'education-home' %}">Студия дополнительного образования "Логикум"</a></h1>
+                
+                <!-- Блок авторизации -->
+                <div class="auth-nav">
+                    {% if user.is_authenticated %}
+                        <span class="user-greeting">👤 {{ user.first_name }}
+                        </span>
+                        <a href="{% url 'profile' %}">Профиль</a>
+                        
+                        {% if user.is_superuser %}
+                            <a href="{% url 'admin:index' %}">Админка</a>
+                        {% endif %}
+                        
+                        <a href="{% url 'logout' %}">Выход</a>
+                    {% else %}
+                        <a href="{% url 'login' %}">Вход</a>
+                        <a href="{% url 'register' %}">Регистрация</a>
+                    {% endif %}
+                </div>
+            </div>
+            
             <nav>
                 <ul>
                     <li><a href="{% url 'education-home' %}">Главная</a></li>
                     <li><a href="{% url 'courses-list' %}">Курсы</a></li>
                     <li><a href="{% url 'categories' %}">Категории</a></li>
                     <li><a href="{% url 'teachers-list' %}">Преподаватели</a></li>
-                    {% if is_admin or is_marketer or is_teacher %}
-                    <li><a href="{% url 'students-list' %}">Студенты</a></li>
-                    {% endif %}
-                    {% if is_admin or is_marketer or is_teacher or is_student %}
-                    <li><a href="{% url 'schedule-list' %}">Расписание</a></li>
-                    {% endif %}
-
-                    {% if is_student %}
-                    <li><a href="{% url 'student-attendance' %}">Моя посещаемость</a></li>
-                    <li><a href="{% url 'student-performance' %}">Мои оценки</a></li>
+                    
+                    {% if user.is_authenticated %}
+                        {% if 'Администраторы' in user_groups or 'Маркетологи' in user_groups or 'Преподаватели' in user_groups %}
+                        <li><a href="{% url 'students-list' %}">Студенты</a></li>
+                        {% endif %}
+                        
+                        <li><a href="{% url 'schedule-list' %}">Расписание</a></li>
+                                                                        
+                        <li><a href="{% url 'groups-list' %}">Группы</a></li>
                     {% endif %}
                     
-                    <li><a href="{% url 'groups-list' %}">Группы</a>
                     <li><a href="{% url 'reviews-list' %}">Отзывы</a></li>
-                    {% if is_admin or is_marketer %}
+                    
+                    {% if 'Администраторы' in user_groups or 'Маркетологи' in user_groups %}
                     <li><a href="{% url 'statistics' %}">Статистика</a></li>
                     {% endif %}
                     
                     <!-- Выпадающее меню "Добавить" -->
-                    {% if is_admin %}
+                    {% if 'Администраторы' in user_groups %}
                     <li class="dropdown">
-                        <a href="#" class="dropbtn"> Добавить</a>
+                        <span class="dropbtn">➕ Добавить</span>
                         <div class="dropdown-content">
                             <a href="{% url 'course-create' %}">Новый курс</a>
                             <a href="{% url 'category-create' %}">Новую категорию</a>
-                            <a href="{% url 'teacher-create' %}">Нового преподавателя</a>
-                            <a href="{% url 'student-register' %}">Нового студента</a>
+                            <a href="{% url 'teacher-create' %}">Преподавателя</a>
+                            <a href="{% url 'student-register' %}">Студента</a>
                             <a href="{% url 'enrollment-create' %}">Записать на курс</a>
+                            <a href="{% url 'schedule-create' %}">Занятие в расписание</a>
                         </div>
                     </li>
                     {% endif %}
-                </ul>
-            </nav>
-
-                    <div class="auth-nav">
-                        {% if user.is_authenticated %}
-                        <span class="user-greeting">👤 {{ user.first_name }}</span>
-                        <a href="{% url 'profile' %}">Профиль</a>
-                        <a href="{% url 'logout' %}">Выход</a>
-                        {% else %}
-                        <a href="{% url 'login' %}">Вход</a>
-                        <a href="{% url 'register' %}">Регистрация</a>
-                        {% endif %}
-                    </div>
+                    
+                    {% if 'Преподаватели' in user_groups %}
+                    <li><a href="{% url 'teacher-dashboard' %}">Мой кабинет</a></li>
+                    {% endif %}
+                    
+                    {% if 'Студенты' in user_groups %}
+                    <li><a href="{% url 'student-dashboard' %}">Мой кабинет</a></li>
+                    <li><a href="{% url 'student-journal' %}">Мой журнал</a></li>
+                    {% endif %}
                 </ul>
             </nav>
         </div>
@@ -86,7 +103,7 @@
 
     <footer>
         <div class="container">
-            <p>© 2025 Студия дополнительного образования. Все права защищены.</p>
+            <p>© 2026 Студия дополнительного образования "Логикум". Все права защищены.</p>
         </div>
     </footer>
 </body>
