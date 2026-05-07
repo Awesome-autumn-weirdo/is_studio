@@ -3,10 +3,12 @@
 {% block title %}Отзывы наших студентов{% endblock %}
 
 {% block content %}
-    <h1>💬 Отзывы наших студентов</h1>
+    <h1>Отзывы наших студентов</h1>
     
     <div class="add-review-btn-wrapper">
-        <a href="{% url 'review-create' %}" class="add-review-btn">✍️ Оставить отзыв</a>
+        {% if 'Студенты' in user_groups %}
+        <a href="{% url 'review-create' %}" class="add-review-btn">Оставить отзыв</a>
+        {% endif %}
     </div>
     
     {% if reviews %}
@@ -53,9 +55,9 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <p>📝 Пока нет ни одного отзыва.</p>
+        <p>Пока нет ни одного отзыва.</p>
         <p>Станьте первым, кто оставит отзыв!</p>
-        <a href="{% url 'review-create' %}" class="add-review-btn">✍️ Оставить отзыв</a>
+        <a href="{% url 'review-create' %}" class="add-review-btn">Оставить отзыв</a>
     </div>
     {% endif %}
 {% endblock %}

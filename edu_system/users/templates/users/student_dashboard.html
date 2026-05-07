@@ -70,17 +70,14 @@
                 <span class="action-icon">📖</span>
                 <span class="action-label">Мой журнал</span>
             </a>
-            <a href="{% url 'courses-list' %}" class="action-card">
-                <span class="action-icon">📖</span>
-                <span class="action-label">Каталог курсов</span>
+            <a href="{% url 'my-schedule' %}" class="action-card">
+                <span class="action-icon">📅</span>
+                <span class="action-label">Моё расписание</span>
             </a>
-            <a href="{% url 'teachers-list' %}" class="action-card">
-                <span class="action-icon">👨‍🏫</span>
-                <span class="action-label">Преподаватели</span>
-            </a>
-            <a href="{% url 'reviews-list' %}" class="action-card">
+            
+            <a href="{% url 'review-create' %}" class="action-card">
                 <span class="action-icon">💬</span>
-                <span class="action-label">Отзывы</span>
+                <span class="action-label">Оставить отзыв</span>
             </a>
         </div>
     </div>

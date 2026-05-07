@@ -5,27 +5,61 @@
 {% block content %}
     <h1>{{ title }}</h1>
     
-    <div class="review-form-container">
-        <form method="post" class="review-form">
-            {% csrf_token %}
-            
-            {% for field in form %}
-            <div class="form-group">
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% if field.help_text %}
-                <small class="help-text">{{ field.help_text }}</small>
-                {% endif %}
-                {% if field.errors %}
-                <div class="error-list">{{ field.errors }}</div>
-                {% endif %}
-            </div>
-            {% endfor %}
-            
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Отправить отзыв</button>
-                <a href="{% url 'reviews-list' %}" class="btn btn-secondary">Отмена</a>
-            </div>
-        </form>
+    <div class="help-info">
+        <p>Вы можете оставить отзыв о курсе, на который вы записаны.</p>
+        <p><strong>Студент:</strong> {{ student.get_full_name }}</p>
     </div>
+    
+    {% if enrolled_courses %}
+    <form method="post" class="review-form">
+        {% csrf_token %}
+        
+        <!-- Выбор курса -->
+        <div class="form-group">
+            <label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>
+            {{ form.course }}
+            {% if form.course.errors %}
+            <div class="error-list">{{ form.course.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- Рейтинг звёздами -->
+        <div class="form-group">
+            <label>Оценка</label>
+            <div class="star-rating">
+                {% for i in "54321" %}
+                <input type="radio" 
+                       id="star{{ i }}" 
+                       name="rating" 
+                       value="{{ i }}"
+                       {% if form.rating.value == i|add:"0" %}checked{% endif %}>
+                <label for="star{{ i }}" title="{{ i }} из 5">★</label>
+                {% endfor %}
+            </div>
+            {% if form.rating.errors %}
+            <div class="error-list">{{ form.rating.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- Комментарий -->
+        <div class="form-group">
+            <label for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
+            {{ form.comment }}
+            {% if form.comment.errors %}
+            <div class="error-list">{{ form.comment.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Опубликовать отзыв</button>
+            <a href="{% url 'courses-list' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+    {% else %}
+    <div class="empty-state">
+        <p>Вы не записаны ни на один активный курс.</p>
+        <p>Запишитесь на курс, чтобы оставить отзыв.</p>
+        <a href="{% url 'courses-list' %}" class="btn btn-primary">Выбрать курс</a>
+    </div>
+    {% endif %}
 {% endblock %}

@@ -23,8 +23,8 @@
             <div class="course-actions">
                 <a href="{{ course.get_absolute_url }}" class="btn">👁️ Просмотр</a>
                 {% if is_admin %}
-                <a href="{% url 'course-update' course.slug %}" class="btn btn-edit">✏️ Изменить</a>
-                <a href="{% url 'course-delete' course.slug %}" class="btn btn-danger">🗑️ Удалить</a>
+                <a href="{% url 'course-update' course.slug %}" class="btn btn-edit">✏️</a>
+                <a href="{% url 'course-delete' course.slug %}" class="btn btn-danger">🗑️</a>
                 {% endif %}
             </div>
         </div>

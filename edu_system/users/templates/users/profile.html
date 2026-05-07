@@ -5,13 +5,12 @@
 {% block content %}
     <div class="page-header">
         <h1>{{ title }}</h1>
-        <a href="{% url 'edit-profile' %}" class="btn btn-edit">✏️ Редактировать профиль</a>
+        <a href="{% url 'edit-profile' %}" class="btn btn-edit">Редактировать профиль</a>
+        <a href="{% url 'change-login' %}" class="btn">Сменить логин</a>
+        <a href="{% url 'change-password' %}" class="btn">Сменить пароль</a>
     </div>
 
-    <div class="profile-actions">
-        <a href="{% url 'change-password' %}" class="btn">🔒 Сменить пароль</a>
-        <a href="{% url 'change-login' %}" class="btn">🔑 Сменить логин</a>
-    </div>  
+    
     
     <div class="profile-container">
         <!-- Информация о пользователе -->

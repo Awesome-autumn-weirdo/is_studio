@@ -6,18 +6,23 @@ from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 
 
 class CustomPasswordChangeForm(PasswordChangeForm):
-    """Форма смены пароля (когда пользователь знает старый пароль)"""
+    """Форма смены пароля"""
     old_password = forms.CharField(
         label='Текущий пароль',
-        widget=forms.PasswordInput(attrs={'placeholder': 'Введите текущий пароль'})
+        strip=False,
+        widget=forms.PasswordInput(attrs={'placeholder': 'Введите текущий пароль', 'autocomplete': 'current-password'})
     )
     new_password1 = forms.CharField(
         label='Новый пароль',
-        widget=forms.PasswordInput(attrs={'placeholder': 'Введите новый пароль'})
+        strip=False,
+        widget=forms.PasswordInput(attrs={'placeholder': 'Введите новый пароль', 'autocomplete': 'new-password'}),
+        help_text='Пароль должен содержать минимум 8 символов, не должен быть слишком простым и не должен состоять только из цифр.',
     )
     new_password2 = forms.CharField(
         label='Подтверждение нового пароля',
-        widget=forms.PasswordInput(attrs={'placeholder': 'Повторите новый пароль'})
+        strip=False,
+        widget=forms.PasswordInput(attrs={'placeholder': 'Повторите новый пароль', 'autocomplete': 'new-password'}),
+        help_text='Введите пароль еще раз для подтверждения.',
     )
 
 
@@ -103,6 +108,20 @@ class UserRegistrationForm(UserCreationForm):
         widget=forms.DateInput(attrs={'type': 'date'})
     )
     
+    # Переопределяем поля пароля с русскими подписями и без английских подсказок
+    password1 = forms.CharField(
+        label='Пароль',
+        strip=False,
+        widget=forms.PasswordInput(attrs={'autocomplete': 'new-password', 'placeholder': 'Введите пароль'}),
+        help_text='Пароль должен содержать минимум 8 символов, не должен быть слишком простым и не должен состоять только из цифр.',
+    )
+    password2 = forms.CharField(
+        label='Подтверждение пароля',
+        strip=False,
+        widget=forms.PasswordInput(attrs={'autocomplete': 'new-password', 'placeholder': 'Повторите пароль'}),
+        help_text='Введите пароль еще раз для подтверждения.',
+    )
+    
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2']
@@ -112,7 +131,7 @@ class UserRegistrationForm(UserCreationForm):
             'password2': 'Подтверждение пароля',
         }
         help_texts = {
-            'username': 'Только буквы, цифры и @/./+/-/_',
+            'username': 'Только буквы, цифры и символы @ . + - _',
         }
     
     def clean_email(self):

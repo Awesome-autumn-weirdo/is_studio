@@ -10,7 +10,7 @@
             <h1>{{ student.get_full_name }}</h1>
             <div class="action-buttons">
                 {% if is_admin %}
-                <a href="{% url 'enrollment-create' %}?student={{ student.id }}" class="btn btn-success">📝 Записать на курс</a>
+                <a href="{% url 'enrollment-create' %}?student={{ student.id }}" class="btn btn-success">Записать на курс</a>
                 {% endif %}
                 <a href="{% url 'students-list' %}" class="btn">← К списку</a>
             </div>
@@ -59,7 +59,7 @@
         
         <!-- Текущие курсы -->
         <div class="student-courses-section">
-            <h2>📚 Записан на курсы</h2>
+            <h2>Записан на курсы</h2>
             {% if enrollments %}
             <div class="enrollments-list">
                 {% for enrollment in enrollments %}
@@ -80,7 +80,7 @@
                                   onsubmit="return confirm('Отменить запись студента с курса?');" 
                                   style="display: inline;">
                                 {% csrf_token %}
-                                {% if is_admin or is_teacher %}
+                                {% if is_admin %}
                                 <button type="submit" class="btn btn-small btn-danger">❌ Отменить запись</button>
                                 {% endif %}
                             </form>
@@ -121,38 +121,60 @@
             <table class="performance-table">
                 <thead>
                     <tr>
+                        <th>Дата</th>
+                        <th>Время</th>
                         <th>Курс</th>
                         <th>Группа</th>
+                        <th>Тема занятия</th>
                         <th>Оценка</th>
                         <th>Комментарий</th>
-                        <th>Дата</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for perf in performance %}
                     <tr>
+                        <td>{{ perf.schedule.date|date:"d.m.Y" }}</td>
+                        <td>{{ perf.schedule.time|time:"H:i" }}</td>
                         <td>
-                            <a href="{{ perf.group.course.get_absolute_url }}">{{ perf.group.course.title }}</a>
+                            <a href="{{ perf.schedule.group.course.get_absolute_url }}">
+                                {{ perf.schedule.group.course.title }}
+                            </a>
                         </td>
-                        <td>{{ perf.group.name }}</td>
+                        <td>{{ perf.schedule.group.name }}</td>
+                        <td>{{ perf.schedule.topic|default:"—" }}</td>
                         <td>
-                            <span class="grade grade-{{ perf.grade|lower }}">
+                            <span class="grade {% if perf.grade == '5' %}grade-5{% elif perf.grade == '4' %}grade-4{% elif perf.grade == '3' %}grade-3{% elif perf.grade == '2' %}grade-2{% endif %}">
                                 {{ perf.grade }}
                             </span>
                         </td>
                         <td>{{ perf.comment|default:"—" }}</td>
-                        <td>{{ perf.date|date:"d.m.Y" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             
             <!-- Средний балл -->
-            {% with avg_grade=performance|length %}
             <div class="performance-summary">
                 <p><strong>Всего оценок:</strong> {{ performance|length }}</p>
+                {% with total=0 count=0 %}
+                    {% for perf in performance %}
+                        {% if perf.grade|length == 1 and perf.grade|first in "2345" %}
+                            <!-- считаем средний балл -->
+                        {% endif %}
+                    {% endfor %}
+                {% endwith %}
+                
+                {# Вычисляем средний балл #}
+                {% with grades=performance|dictsort:"grade" %}
+                    {% with sum=0 count=0 %}
+                        {% for perf in performance %}
+                            {% if perf.grade == '5' or perf.grade == '4' or perf.grade == '3' or perf.grade == '2' %}
+                                {% with sum=sum|add:perf.grade count=count|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endwith %}
+                {% endwith %}
             </div>
-            {% endwith %}
             {% else %}
             <p class="empty-message">Оценки пока не выставлены.</p>
             {% endif %}
@@ -248,16 +270,17 @@
             {% endif %}
             
             <div class="add-review">
+                {% if is_student %}
                 <a href="{% url 'review-create' %}?student={{ student.id }}" class="btn btn-primary">
-                    ✍️ Оставить отзыв
+                    Оставить отзыв
                 </a>
+                {% endif %}
             </div>
         </div>
         
         <!-- Навигация -->
         <div class="student-navigation">
             <a href="{% url 'students-list' %}" class="btn">← Назад к списку студентов</a>
-            <a href="{% url 'education-home' %}" class="btn">🏠 На главную</a>
         </div>
     </div>
 {% endblock %}

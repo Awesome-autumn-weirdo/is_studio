@@ -1,11 +1,11 @@
-{% load static %}
 <!DOCTYPE html>
+{% load static %}
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Студия дополнительного образования{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'education/css/styles.css' %}?v=1234">
+    <link rel="stylesheet" href="{% static 'education/css/styles.css' %}?v=1235">
 </head>
 <body>
     <header>
@@ -38,6 +38,10 @@
                     <li><a href="{% url 'categories' %}">Категории</a></li>
                     <li><a href="{% url 'courses-list' %}">Курсы</a></li>
                     <li><a href="{% url 'teachers-list' %}">Преподаватели</a></li>
+
+                    {% if 'Администраторы' in user_groups %}
+                    <li><a href="{% url 'marketers-list' %}">Маркетологи</a></li>
+                    {% endif %}
                     
                     {% if user.is_authenticated %}
                         {% if 'Администраторы' in user_groups or 'Маркетологи' in user_groups or 'Преподаватели' in user_groups %}
@@ -60,12 +64,14 @@
                     <li class="dropdown">
                         <span class="dropbtn">➕ Добавить</span>
                         <div class="dropdown-content">
-                            <a href="{% url 'course-create' %}">Новый курс</a>
                             <a href="{% url 'category-create' %}">Новую категорию</a>
+                            <a href="{% url 'course-create' %}">Новый курс</a>
+                            <a href="{% url 'group-create' %}">Новую группу</a>
                             <a href="{% url 'teacher-create' %}">Преподавателя</a>
                             <a href="{% url 'student-register' %}">Студента</a>
-                            <a href="{% url 'enrollment-create' %}">Записать на курс</a>
+                            <a href="{% url 'marketer-create' %}">Маркетолога</a>
                             <a href="{% url 'schedule-create' %}">Занятие в расписание</a>
+                            <a href="{% url 'enrollment-create' %}">Записать на курс</a>
                         </div>
                     </li>
                     {% endif %}

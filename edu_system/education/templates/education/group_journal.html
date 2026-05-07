@@ -1,131 +1,428 @@
 {% extends 'base.html' %}
 {% load static %}
-{% load education_filters %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
 
+<div class="crm-journal">
+    <!-- Заголовок -->
+    <div class="journal-header">
+        <div>
+            <h1>📒 {{ title }}</h1>
+            <div class="journal-meta">
+                <span>{{ group.course.title }}</span>
+                
+            </div>
+        </div>
+        <div class="journal-actions">
+        {% if 'Администраторы' in user_groups %}
+            <a href="{% url 'schedule-create' %}?group={{ group.id }}" class="btn btn-success">Добавить занятие</a>
+        {% endif %}
+            <a href="{% url 'group-detail' group.id %}" class="btn">← Группа</a>
+        </div>
+    </div>
+
+    <!-- CRM Таблица -->
+    <div class="journal-table-wrapper">
+        <table class="journal crm-table">
+            <thead>
+                <tr>
+                    <th class="sticky-left">Студент</th>
+                    {% for s in schedules %}
+                    <th>
+                        <div class="th-date">{{ s.date|date:"d.m" }}</div>
+                        <div class="th-time">{{ s.time|time:"H:i" }}</div>
+                    </th>
+                    {% endfor %}
+                    <th>%</th>
+                    <th>Средний</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr data-student-id="{{ row.student.id }}">
+                    <td class="sticky-left student-name">
+                        {{ row.student.get_full_name }}
+                    </td>
+
+                    {% for cell in row.cells %}
+                    <td class="cell"
+                        data-student="{{ row.student.id }}"
+                        data-schedule="{{ cell.schedule.id }}"
+                        data-status="{{ cell.attendance.status|default:'' }}"
+                        data-grade="{{ cell.performance.grade|default:'' }}"
+                        data-comment="{{ cell.performance.comment|default:'' }}"
+                        onclick="editCell(this)"
+                        ondblclick="removeGrade(this)"
+                        oncontextmenu="changeGrade(this); return false;"
+                        title="Клик: изменить статус | Двойной клик: удалить оценку | Правый клик: изменить оценку">
+                        
+                        <div class="att-icon">
+                            {% if cell.attendance %}
+                                {% if cell.attendance.status == 'present' %}✅
+                                {% elif cell.attendance.status == 'absent' %}❌
+                                {% elif cell.attendance.status == 'late' %}⏰
+                                {% elif cell.attendance.status == 'excused' %}📝
+                                {% endif %}
+                            {% else %}·
+                            {% endif %}
+                        </div>
+
+                        <div class="grade-value">
+                            {{ cell.performance.grade|default:'' }}
+                        </div>
+                    </td>
+                    {% endfor %}
+
+                    <td class="stat-cell">
+                        <span class="rate {% if row.attendance_rate >= 80 %}good{% elif row.attendance_rate >= 60 %}ok{% else %}bad{% endif %}">
+                            {{ row.attendance_rate }}%
+                        </span>
+                    </td>
+                    <td class="stat-cell">
+                        <span class="avg">{{ row.avg_grade|default:"—" }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Легенда -->
+    <div class="journal-legend">
+        <span>✅ Присутствовал</span>
+        <span>❌ Отсутствовал</span>
+        <span>⏰ Опоздал</span>
+        <span>📝 Ув. причина</span>
+        <span>💡 Клик: статус | Двойной клик: удалить оценку | Правый клик: изменить оценку</span>
+    </div>
+</div>
+
+<!-- ===== МОДАЛЬНОЕ ОКНО ДЛЯ ОЦЕНКИ ===== -->
+<div id="gradeModal" class="modal-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3>📝 Выставить оценку</h3>
+            <button class="modal-close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="modal-student-info">
+                <span id="modalStudentName"></span>
+                <span id="modalLessonDate"></span>
+            </div>
+            
+            <div class="form-group">
+                <label for="modalGrade">Оценка:</label>
+                <div class="grade-buttons">
+                    <button class="grade-btn" data-grade="5" onclick="selectGrade('5')">
+                        <span class="grade-num">5</span>
+                        <span class="grade-label">Отлично</span>
+                    </button>
+                    <button class="grade-btn" data-grade="4" onclick="selectGrade('4')">
+                        <span class="grade-num">4</span>
+                        <span class="grade-label">Хорошо</span>
+                    </button>
+                    <button class="grade-btn" data-grade="3" onclick="selectGrade('3')">
+                        <span class="grade-num">3</span>
+                        <span class="grade-label">Удовл.</span>
+                    </button>
+                    <button class="grade-btn" data-grade="2" onclick="selectGrade('2')">
+                        <span class="grade-num">2</span>
+                        <span class="grade-label">Неуд.</span>
+                    </button>
+                    <button class="grade-btn pass" data-grade="зачет" onclick="selectGrade('зачет')">
+                        <span class="grade-num">✓</span>
+                        <span class="grade-label">Зачет</span>
+                    </button>
+                    <button class="grade-btn fail" data-grade="незачет" onclick="selectGrade('незачет')">
+                        <span class="grade-num">✗</span>
+                        <span class="grade-label">Незачет</span>
+                    </button>
+                </div>
+                <input type="hidden" id="modalGradeInput">
+            </div>
+            
+            <div class="form-group">
+                <label for="modalComment">Комментарий:</label>
+                <textarea id="modalComment" rows="2" placeholder="Необязательно"></textarea>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-danger" onclick="clearGrade()">🗑️ Удалить оценку</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+            <button class="btn btn-primary" onclick="saveGrade()">💾 Сохранить</button>
+        </div>
+    </div>
+</div>
+
+
 <script>
+// ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
+const STATUS_CYCLE = ["", "present", "late", "absent", "excused"];
+const STATUS_ICONS = {
+    "": "·",
+    "present": "✅",
+    "late": "⏰",
+    "absent": "❌",
+    "excused": "📝"
+};
+
 let buffer = [];
+let saveTimer = null;
+let currentCell = null;
 
-function markCell(cell, scheduleId, studentId) {
-    const statuses = ["", "present", "late", "absent", "excused"];
+// ===== РЕДАКТИРОВАНИЕ ЯЧЕЙКИ =====
+function editCell(cell) {
+    let currentStatus = cell.dataset.status || "";
+    let idx = STATUS_CYCLE.indexOf(currentStatus);
+    let nextStatus = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+    
+    // Обновляем статус
+    cell.dataset.status = nextStatus;
+    cell.querySelector('.att-icon').textContent = STATUS_ICONS[nextStatus];
+    
+    // Если переключили на "присутствовал" — показываем модалку
+    if (nextStatus === "present") {
+        showModal(cell);
+    } else {
+        // Если убираем "присутствовал" — удаляем оценку
+        if (cell.dataset.grade) {
+            cell.dataset.grade = '';
+            cell.dataset.comment = '';
+            cell.querySelector('.grade-value').textContent = '';
+        }
+        saveCell(cell);
+    }
+    
+    // Анимация
+    cell.classList.add('just-saved');
+    setTimeout(() => cell.classList.remove('just-saved'), 600);
+}
 
-    let current = cell.dataset.status || "";
-    let index = statuses.indexOf(current);
-    let next = statuses[(index + 1) % statuses.length];
+// ===== МОДАЛЬНОЕ ОКНО =====
+function showModal(cell) {
+    currentCell = cell;
+    
+    const studentName = cell.closest('tr').querySelector('.student-name').textContent.trim();
+    const scheduleDate = cell.querySelector('.att-icon').parentElement.dataset.schedule || '';
+    
+    document.getElementById('modalStudentName').textContent = '👤 ' + studentName;
+    
+    // Устанавливаем текущую оценку
+    const currentGrade = cell.dataset.grade || '';
+    const currentComment = cell.dataset.comment || '';
+    
+    selectGrade(currentGrade);
+    document.getElementById('modalComment').value = currentComment;
+    
+    document.getElementById('gradeModal').style.display = 'flex';
+    
+    // Фокус на первой кнопке оценки
+    setTimeout(() => {
+        const firstBtn = document.querySelector('.grade-btn');
+        if (firstBtn) firstBtn.focus();
+    }, 100);
+}
 
-    cell.dataset.status = next;
+function closeModal() {
+    document.getElementById('gradeModal').style.display = 'none';
+    currentCell = null;
+}
 
-    buffer.push({
-        student_id: studentId,
-        schedule_id: scheduleId,
-        status: next
+function selectGrade(grade) {
+    document.getElementById('modalGradeInput').value = grade;
+    
+    // Подсветка выбранной кнопки
+    document.querySelectorAll('.grade-btn').forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.dataset.grade === grade) {
+            btn.classList.add('selected');
+        }
     });
-
-    debounceSend();
 }
 
-let timeout = null;
+function saveGrade() {
+    if (!currentCell) return;
 
-function debounceSend() {
-    clearTimeout(timeout);
-    timeout = setTimeout(sendBatch, 500);
+    const cell = currentCell; // сохраняем ссылку ДО closeModal
+
+    const grade = document.getElementById('modalGradeInput').value || '';
+    const comment = document.getElementById('modalComment').value;
+
+    cell.dataset.grade = grade;
+    cell.dataset.comment = comment;
+    cell.querySelector('.grade-value').textContent = grade;
+
+    closeModal();
+
+    saveCell(cell, comment); // используем сохранённую ссылку
 }
 
-function sendBatch() {
+function clearGrade() {
+    if (!currentCell) return;
+
+    if (confirm('Удалить оценку?')) {
+
+        const cell = currentCell;
+
+        cell.dataset.grade = '';
+        cell.dataset.comment = '';
+        cell.querySelector('.grade-value').textContent = '';
+
+        closeModal();
+
+        saveCell(cell, '');
+    }
+}
+
+// ===== ДВОЙНОЙ КЛИК — УДАЛИТЬ ОЦЕНКУ =====
+function removeGrade(cell) {
+    if (cell.dataset.grade) {
+        if (confirm(`Удалить оценку "${cell.dataset.grade}"?`)) {
+            cell.dataset.grade = '';
+            cell.dataset.comment = '';
+            cell.querySelector('.grade-value').textContent = '';
+            
+            cell.classList.add('just-saved');
+            setTimeout(() => cell.classList.remove('just-saved'), 600);
+            
+            saveCell(cell);
+        }
+    }
+}
+
+// ===== ПРАВЫЙ КЛИК — ИЗМЕНИТЬ ОЦЕНКУ =====
+function changeGrade(cell) {
+    showModal(cell);
+}
+
+// ===== СОХРАНЕНИЕ =====
+function saveCell(cell, comment = '') {
+    const item = {
+        student_id: parseInt(cell.dataset.student),
+        schedule_id: parseInt(cell.dataset.schedule),
+        status: cell.dataset.status || '',  // Отправляем текущий статус
+        grade: cell.dataset.grade || '',    // Отправляем текущую оценку
+        comment: comment
+    };
+    
+    // Удаляем дубликаты в буфере
+    buffer = buffer.filter(b => 
+        !(b.student_id === item.student_id && b.schedule_id === item.schedule_id)
+    );
+    
+    buffer.push(item);
+    
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(sendBuffer, 500);
+}
+
+function sendBuffer() {
     if (!buffer.length) return;
-
-    fetch("/education/attendance/bulk/", {
+    
+    const batch = [...buffer];
+    buffer = [];
+    
+    fetch("/education/journal/bulk/", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": getCSRFToken()
         },
-        body: JSON.stringify(buffer)
-    });
-
-    buffer = [];
+        body: JSON.stringify(batch)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            console.log('✅ Сохранено');
+            updateStatistics();
+        }
+    })
+    .catch(err => console.error('Ошибка:', err));
 }
+
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+        c = c.trim();
+        if (c.startsWith(name + '=')) return c.substring(name.length + 1);
+    }
+    return '';
+}
+
+function updateStatistics() {
+    // Считаем статистику заново для каждой строки
+    document.querySelectorAll('tbody tr[data-student-id]').forEach(row => {
+        const cells = row.querySelectorAll('.cell');
+        let presentCount = 0;
+        let grades = [];
+        
+        cells.forEach(cell => {
+            if (cell.dataset.status === 'present' || 
+                cell.dataset.status === 'late') {
+                presentCount++;
+            }
+            const grade = cell.dataset.grade;
+            if (grade && !isNaN(grade)) {
+                grades.push(parseInt(grade));
+            }
+        });
+        
+        const total = cells.length;
+        const rate = total > 0 ? Math.round(presentCount / total * 100) : 0;
+        const avg = grades.length > 0 ? (grades.reduce((a, b) => a + b, 0) / grades.length).toFixed(1) : null;
+        
+        // Обновляем % 
+        const rateSpan = row.querySelector('.rate');
+        if (rateSpan) {
+            rateSpan.textContent = rate + '%';
+            rateSpan.className = 'rate ' + (rate >= 80 ? 'good' : rate >= 60 ? 'ok' : 'bad');
+        }
+        
+        // Обновляем средний балл
+        const avgSpan = row.querySelector('.avg');
+        if (avgSpan) {
+            avgSpan.textContent = avg || '—';
+        }
+    });
+}
+
+// ===== СОБЫТИЯ =====
+// Закрытие модалки по клику вне
+window.onclick = function(event) {
+    const modal = document.getElementById('gradeModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
+
+// Закрытие по Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeModal();
+    }
+    // Enter — сохранить
+    if (e.key === 'Enter' && document.getElementById('gradeModal').style.display === 'flex') {
+        e.preventDefault();
+        saveGrade();
+    }
+    // Цифры для быстрого выбора оценки
+    if (document.getElementById('gradeModal').style.display === 'flex') {
+        const gradeKeys = {'1': '2', '2': '3', '3': '4', '4': '5', '5': '5', 'з': 'зачет', 'н': 'незачет'};
+        if (gradeKeys[e.key]) {
+            selectGrade(gradeKeys[e.key]);
+        }
+    }
+});
+
+// Сохраняем при уходе
+window.addEventListener('beforeunload', () => {
+    if (buffer.length) sendBuffer();
+});
 </script>
 
-<div class="journal-page modern-journal">
-
-    <!-- Header -->
-    <div class="journal-header">
-        <div>
-            <h1>{{ title }}</h1>
-            <div class="meta">
-                <span>{{ group.course.title }}</span>
-                <span>• {{ group.teacher.get_full_name|default:"—" }}</span>
-                <span>• {{ journal_data|length }} студентов</span>
-            </div>
-        </div>
-
-        <div class="journal-actions">
-            <a href="{% url 'performance-add' group.id %}" class="btn btn-success">Оценки</a>
-            <a href="{% url 'attendance-group-report' group.id %}" class="btn">Отчет</a>
-        </div>
-    </div>
-
-    <!-- Table -->
-    <div class="journal-table-wrapper">
-        <table class="journal-table journal-grid">
-
-            <thead>
-                <tr>
-                    <th class="sticky-col">Студент</th>
-
-                    {% for schedule in schedules %}
-                        <th class="lesson-col">
-                            <div>{{ schedule.date|date:"d.m" }}</div>
-                            <small>{{ schedule.time|time:"H:i" }}</small>
-                        </th>
-                    {% endfor %}
-
-                    <th>%</th>
-                    <th>Оценки</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for row in journal_data %}
-                <tr>
-                    <!-- Student -->
-                    <td class="student sticky-col">
-                        {{ row.student.get_full_name }}
-                    </td>
-
-                    <!-- Attendance -->
-                    {% for schedule in schedules %}
-                        {% with att=row.attendances|get_item:schedule.id %}
-                        <td class="cell"
-                            data-status="{{ att.status|default:'' }}"
-                            onclick="markCell(this, {{ schedule.id }}, {{ row.student.id }})"
-                            title="{{ att.status|default:'Нет данных' }}">
-                        </td>
-                        {% endwith %}
-                    {% endfor %}
-
-                    <!-- % -->
-                    <td class="percent">
-                        {{ row.attendances|length|floatformat:0 }}%
-                    </td>
-
-                    <!-- Grades -->
-                    <td class="grades">
-                        {% for perf in row.performances %}
-                            <span class="grade">{{ perf.grade }}</span>
-                        {% empty %}
-                            —
-                        {% endfor %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-
-        </table>
-    </div>
-</div>
 {% endblock %}

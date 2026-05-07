@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    
+    <div class="delete-confirmation">
+        <p>Вы уверены, что хотите удалить маркетолога <strong>"{{ marketer.get_full_name }}"</strong>?</p>
+        
+        <div class="warning-box">
+            <p>⚠️ Вместе с маркетологом будет удалена его учетная запись для входа в систему!</p>
+            {% if marketer.user %}
+            <p><strong>Логин:</strong> {{ marketer.user.username }}</p>
+            <p><strong>Email:</strong> {{ marketer.user.email }}</p>
+            {% endif %}
+        </div>
+        
+        <p class="warning">Это действие нельзя будет отменить!</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Да, удалить</button>
+            <a href="{% url 'marketers-list' %}" class="btn btn-secondary">Отмена</a>
+        </form>
+    </div>
+{% endblock %}

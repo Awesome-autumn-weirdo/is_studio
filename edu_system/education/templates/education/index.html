@@ -55,34 +55,37 @@
     {% if latest_reviews %}
     <div class="reviews-section">
         <h2>Отзывы наших студентов</h2>
-        <div class="review-grid">
+        <div class="reviews-list">
             {% for review in latest_reviews %}
-            <div class="review-card">
-                <div class="rating">★★★★★<span class="rating-value">{{ review.rating }}</span></div>
-                <p class="comment">"{{ review.comment|truncatewords:30 }}"</p>
-                <p class="author">— {{ review.student.get_full_name }}, курс "{{ review.course.title }}"</p>
+            <div class="review-card {% if not review.is_approved %}review-pending{% endif %}">
+                <!-- Цветная полоса сверху (как в reviews_list.html) -->
+                
+                <div class="review-header">
+                    <span class="review-course">
+                        <a href="{{ review.course.get_absolute_url }}">{{ review.course.title }}</a>
+                    </span>
+                    
+                    <!-- ЗОЛОТЫЕ звезды -->
+                    <span class="review-rating" title="Оценка {{ review.rating }}/5">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
+                        {% endfor %}
+                        <span class="rating-value">({{ review.rating }}/5)</span>
+                    </span>
+                    
+                    <span class="review-date">{{ review.review_date|date:"d.m.Y" }}</span>
+                </div>
+                
+                <p class="review-author">
+                    <strong>{{ review.student.get_full_name }}</strong>
+                </p>
+                
+                <p class="review-comment">"{{ review.comment|truncatewords:50 }}"</p>
             </div>
             {% endfor %}
         </div>
         <p class="all-link"><a href="{% url 'reviews-list' %}">Все отзывы →</a></p>
     </div>
     {% endif %}
-
-    <!-- Все курсы -->
-    {% if courses %}
-    <div class="courses-section">
-        <h2>Наши курсы</h2>
-        <div class="course-grid">
-            {% for course in courses %}
-            <div class="course-card">
-                <h3><a href="{{ course.get_absolute_url }}">{{ course.title }}</a></h3>
-                <p class="category">{{ course.category.name }}</p>
-                <p>{{ course.description|truncatewords:15 }}</p>
-                <p><strong>{{ course.price }} ₽</strong></p>
-                <a href="{{ course.get_absolute_url }}" class="btn">Подробнее</a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
+    
 {% endblock %}

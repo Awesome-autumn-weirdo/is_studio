@@ -4,7 +4,7 @@ import string
 from django import forms
 from django.core.validators import MinValueValidator, MaxValueValidator, EmailValidator
 from .models import (
-    Course, Category, Teacher, Student, Group as EduGroup, 
+    Administrator, Course, Category, Teacher, Student, Group as EduGroup, 
     Enrollment, Schedule, Attendance, Performance, Review
 )
 from datetime import date
@@ -178,6 +178,80 @@ class TeacherForm(forms.ModelForm):
                         raise ValidationError('Поддерживаются только форматы: JPG, PNG, GIF')
                 
                 return photo
+
+
+class MarketerForm(forms.ModelForm):
+    """Форма для создания маркетолога (с автосозданием пользователя)"""
+    username = forms.CharField(
+        max_length=50, required=False, label='Логин',
+        help_text='Оставьте пустым для автоматической генерации'
+    )
+    password = forms.CharField(
+        max_length=50, required=False, label='Пароль',
+        widget=forms.PasswordInput(),
+        help_text='Оставьте пустым для автоматической генерации'
+    )
+    email = forms.EmailField(required=True, label='Email')
+    
+    class Meta:
+        model = Administrator
+        fields = ['first_name', 'last_name', 'phone', 'position']
+        labels = {
+            'first_name': 'Имя',
+            'last_name': 'Фамилия',
+            'phone': 'Телефон',
+            'position': 'Должность',
+        }
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError('Пользователь с таким email уже существует')
+        return email
+    
+    def save(self, commit=True):
+        admin = super().save(commit=False)
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+        email = self.cleaned_data.get('email')
+        
+        if not username:
+            username = self.generate_username(admin.last_name)
+        if not password:
+            password = self.generate_password()
+        
+        # Сохраняем для отображения
+        self.generated_username = username
+        self.generated_password = password
+        
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=admin.first_name,
+            last_name=admin.last_name
+        )
+        
+        admin.user = user
+        
+        if commit:
+            admin.save()
+            # Добавляем в группу "Маркетологи"
+            marketer_group = AuthGroup.objects.get_or_create(name='Маркетологи')[0]
+            user.groups.add(marketer_group)
+        
+        return admin
+    
+    def generate_username(self, last_name):
+        base = f"marketer_{last_name.lower().replace(' ', '_')}"
+        while True:
+            suffix = ''.join(random.choices(string.digits, k=4))
+            username = f"{base}_{suffix}"
+            if not User.objects.filter(username=username).exists():
+                return username
+    
+    def generate_password(self):
+        return ''.join(random.choices(string.ascii_letters + string.digits, k=12))
 
 
 class StudentForm(forms.ModelForm):
@@ -392,16 +466,37 @@ class PerformanceBulkForm(forms.Form):
 
 class ReviewForm(forms.ModelForm):
     """Форма для создания отзыва"""
+    
+    rating = forms.ChoiceField(
+        choices=[(i, f"{'★' * i}{'☆' * (5 - i)}") for i in range(1, 6)],
+        widget=forms.RadioSelect,
+        label='Оценка'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        student = kwargs.pop('student', None)
+        super().__init__(*args, **kwargs)
+        
+        if student:
+            enrolled_courses = Course.objects.filter(
+                groups__enrollments__student=student,
+                groups__enrollments__is_active=True
+            ).distinct()
+            self.fields['course'].queryset = enrolled_courses
+            self.fields['course'].empty_label = "Выберите курс"
+    
     class Meta:
         model = Review
         fields = ['course', 'rating', 'comment']
         widgets = {
-            'comment': forms.Textarea(attrs={'rows': 4}),
+            'comment': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Расскажите о своих впечатлениях от курса...'
+            }),
         }
         labels = {
             'course': 'Курс',
-            'rating': 'Оценка (1-5)',
-            'comment': 'Комментарий',
+            'comment': 'Ваш отзыв',
         }
 
 

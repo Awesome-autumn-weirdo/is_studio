@@ -399,19 +399,24 @@ class Attendance(models.Model):
 class Performance(models.Model):
     """Успеваемость"""
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='performance', verbose_name="Студент")
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='performance', verbose_name="Группа")
+    schedule = models.ForeignKey(
+        Schedule, on_delete=models.CASCADE,
+        related_name='performance', verbose_name="Занятие"
+    )
     grade = models.CharField(max_length=10, verbose_name="Оценка")
     comment = models.TextField(blank=True, verbose_name="Комментарий")
-    date = models.DateField(auto_now_add=True, verbose_name="Дата выставления")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
 
     class Meta:
         db_table = 'performance'
         verbose_name = 'Успеваемость'
         verbose_name_plural = 'Успеваемость'
-        ordering = ['-date']
+        ordering = ['schedule__date']
+        unique_together = ['student', 'schedule']
 
     def __str__(self):
-        return f"{self.student} - {self.group} - {self.grade}"
+        return f"{self.student} — {self.schedule.date} — {self.grade}"
 
 
 class Review(models.Model):

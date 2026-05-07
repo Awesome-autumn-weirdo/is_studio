@@ -1,6 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, JsonResponse
-from django.db.models import Q, Count, Avg
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, UpdateView, DeleteView
@@ -14,15 +13,14 @@ from datetime import date, datetime, timedelta
 from .decorators import teacher_required, admin_required, student_required
 
 from .models import (
-    Course, Category, Teacher, Student, Group, 
+    Administrator, Course, Category, Teacher, Student, Group, 
     Enrollment, Schedule, Attendance, Performance, Review
 )
 from .forms import (
-    CourseForm, CategoryForm, TeacherForm, StudentForm,
+    CourseForm, CategoryForm, MarketerForm, TeacherForm, StudentForm,
     GroupForm, EnrollmentForm, ScheduleForm, AttendanceForm,
     PerformanceForm, ReviewForm, CourseFilterForm
 )
-from .decorators import admin_required, teacher_required, student_required
 from django.views.decorators.http import require_POST
 import json
 
@@ -30,6 +28,7 @@ import json
 @login_required
 @teacher_required
 def group_journal(request, group_id):
+    """Единый журнал группы: CRM-стиль"""
     group = get_object_or_404(
         Group.objects.select_related('course', 'teacher'),
         id=group_id
@@ -40,98 +39,112 @@ def group_journal(request, group_id):
         messages.error(request, 'Нет доступа')
         return redirect('teacher-dashboard')
 
-    students = list(
-        Student.objects.filter(
-            enrollments__group=group,
-            enrollments__is_active=True
-        )
-        .distinct()
-        .order_by('last_name', 'first_name')
-    )
+    # Студенты
+    students = Student.objects.filter(
+        enrollments__group=group,
+        enrollments__is_active=True
+    ).distinct().order_by('last_name', 'first_name')
 
-    schedules = list(
-        group.schedule.all()
-        .order_by('-date', '-time')[:20]
-    )
+    # Занятия в хронологическом порядке
+    schedules = list(group.schedule.all().order_by('date', 'time'))
 
+    # Посещаемость
     attendances = Attendance.objects.filter(
         schedule__in=schedules,
         student__in=students
     )
+    att_map = {(a.student_id, a.schedule_id): a for a in attendances}
 
-    attendance_map = {
-        (a.student_id, a.schedule_id): a
-        for a in attendances
-    }
-
+    # Оценки
     performances = Performance.objects.filter(
-        student__in=students,
-        group=group
-    ).order_by('-date')
+        schedule__in=schedules,
+        student__in=students
+    )
+    perf_map = {(p.student_id, p.schedule_id): p for p in performances}
 
-    perf_map = {}
-    for p in performances:
-        perf_map.setdefault(p.student_id, []).append(p)
-
-    journal_data = []
-
+    # Строим data grid
+    rows = []
     for student in students:
-        student_att = {}
+        cells = []
         present_count = 0
+        grades_list = []
 
-        for schedule in schedules:
-            att = attendance_map.get((student.id, schedule.id))
-            student_att[schedule.id] = att
+        for sched in schedules:
+            att = att_map.get((student.id, sched.id))
+            perf = perf_map.get((student.id, sched.id))
+
             if att and att.status == 'present':
                 present_count += 1
 
-        journal_data.append({
+            if perf and perf.grade and perf.grade.isdigit():
+                grades_list.append(int(perf.grade))
+
+            cells.append({
+                'schedule': sched,
+                'attendance': att,
+                'performance': perf,
+            })
+
+        total = len(schedules)
+        avg_grade = round(sum(grades_list) / len(grades_list), 2) if grades_list else None
+        attendance_rate = round(present_count / total * 100) if total > 0 else 0
+
+        rows.append({
             'student': student,
-            'attendances': student_att,
-            'performances': perf_map.get(student.id, [])[:5],
+            'cells': cells,
             'present_count': present_count,
-            'total': len(schedules),
+            'total': total,
+            'attendance_rate': attendance_rate,
+            'avg_grade': avg_grade,
         })
 
     return render(request, 'education/group_journal.html', {
         'title': f'Журнал: {group.name}',
         'group': group,
-        'journal_data': journal_data,
+        'rows': rows,
         'schedules': schedules,
     })
 
 
 @login_required
 @teacher_required
-@require_POST
-def attendance_bulk(request):
+def journal_bulk(request):
+    """Сохранение посещаемости И оценок"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Метод не поддерживается'}, status=405)
+
     data = json.loads(request.body)
 
-    schedule_ids = {item['schedule_id'] for item in data}
-    schedules = Schedule.objects.filter(id__in=schedule_ids)
+    for item in data:
+        student_id = item.get('student_id')
+        schedule_id = item.get('schedule_id')
+        status = item.get('status', '')
+        grade = item.get('grade', '')
+        comment = item.get('comment', '')
 
-    # Проверка доступа
-    for s in schedules:
-        if s.group.teacher != request.user.teacher_profile:
-            return JsonResponse({'error': 'Доступ запрещен'}, status=403)
+        if not student_id or not schedule_id:
+            continue
 
-    objs = [
-        Attendance(
-            schedule_id=item['schedule_id'],
-            student_id=item['student_id'],
-            status=item['status']
-        )
-        for item in data
-    ]
+        # ВСЕГДА обновляем/создаем посещаемость (даже если статус пустой)
+        if status is not None:  # Может быть пустой строкой
+            Attendance.objects.update_or_create(
+                student_id=student_id,
+                schedule_id=schedule_id,
+                defaults={'status': status}
+            )
 
-    Attendance.objects.bulk_create(
-        objs,
-        update_conflicts=True,
-        unique_fields=['schedule', 'student'],
-        update_fields=['status']
-    )
+        # ВСЕГДА обновляем/создаем оценку (даже если очищаем)
+        if grade is not None:  # Может быть пустой строкой (удаление)
+            Performance.objects.update_or_create(
+                student_id=student_id,
+                schedule_id=schedule_id,
+                defaults={
+                    'grade': grade,
+                    'comment': comment
+                }
+            )
 
-    return JsonResponse({'success': True})
+    return JsonResponse({'ok': True})
 
 
 @login_required
@@ -156,16 +169,20 @@ def student_journal(request):
         attendances = Attendance.objects.filter(
             student=student,
             schedule__group=group
-        )
+        ).select_related('schedule').order_by('-schedule__date')
         
         present_count = attendances.filter(status='present').count()
+        # Также считаем late и excused как присутствие
+        present_count += attendances.filter(status='late').count()
+        present_count += attendances.filter(status='excused').count()
+        
         attendance_rate = (present_count / total_lessons * 100) if total_lessons > 0 else 0
         
-        # Оценки
+        # Оценки — 🔥 ИСПРАВЛЕНО: используем select_related('schedule')
         performances = Performance.objects.filter(
             student=student,
-            group=group
-        ).order_by('-date')[:10]
+            schedule__group=group
+        ).select_related('schedule').order_by('-schedule__date')[:10]
         
         courses_data.append({
             'course': group.course,
@@ -173,7 +190,7 @@ def student_journal(request):
             'total_lessons': total_lessons,
             'present_count': present_count,
             'attendance_rate': attendance_rate,
-            'attendances': attendances.order_by('-schedule__date')[:10],
+            'attendances': attendances[:10],
             'performances': performances,
         })
     
@@ -582,7 +599,9 @@ def student_detail(request, student_id):
     attendance = student.attendance.select_related('schedule__group__course').all()[:10]
     
     # Успеваемость
-    performance = student.performance.select_related('group__course').all()
+    performance = Performance.objects.filter(
+        student=student
+    ).select_related('schedule__group__course').order_by('-schedule__date')
     
     # Отзывы
     reviews = student.reviews.select_related('course').all()
@@ -630,7 +649,7 @@ def teacher_create(request):
         form = TeacherForm()
     
     data = {
-        'title': 'Добавление преподавателя',
+        'title': 'Регистрация преподавателя',
         'form': form,
     }
     return render(request, 'education/teacher_form.html', data)
@@ -774,7 +793,9 @@ def group_detail(request, group_id):
     schedule = group.schedule.all().order_by('date', 'time')
     
     # Успеваемость студентов группы
-    performance = group.performance.select_related('student').all()
+    performance = Performance.objects.filter(
+        schedule__group=group
+    ).select_related('student', 'schedule').order_by('-schedule__date')
     
     data = {
         'title': f'Группа: {group.name}',
@@ -849,27 +870,53 @@ def enrollment_delete(request, enrollment_id):
 
 @login_required(login_url=settings.LOGIN_URL)
 def review_create(request):
-    """Создание отзыва"""
+    """Создание отзыва студентом"""
+    
+    if not hasattr(request.user, 'student_profile'):
+        messages.error(request, 'Только студенты могут оставлять отзывы')
+        return redirect('courses-list')
+    
+    student = request.user.student_profile
+    
+    # Проверяем, есть ли курсы для отзыва
+    enrolled_courses = Course.objects.filter(
+        groups__enrollments__student=student,
+        groups__enrollments__is_active=True
+    ).distinct()
+    
+    if not enrolled_courses.exists():
+        messages.warning(request, 'Вы не записаны ни на один курс. Запишитесь на курс, чтобы оставить отзыв.')
+        return redirect('courses-list')
+    
+    # Предзаполняем курс, если передан в GET
+    initial = {}
+    course_id = request.GET.get('course')
+    if course_id:
+        try:
+            course = enrolled_courses.get(id=course_id)
+            initial['course'] = course
+        except Course.DoesNotExist:
+            pass
+    
     if request.method == 'POST':
-        form = ReviewForm(request.POST)
+        form = ReviewForm(request.POST, student=student)
         if form.is_valid():
             review = form.save(commit=False)
-            # Привязываем студента
-            if hasattr(request.user, 'student_profile'):
-                review.student = request.user.student_profile
-            
-            # Автоматически одобряем отзыв
-            review.is_approved = True
-            
+            review.student = student
+            review.is_approved = True  # Автоматически одобряем
             review.save()
-            messages.success(request, 'Спасибо за ваш отзыв! Он опубликован.')
+            
+            messages.success(request, 
+                f'Спасибо за ваш отзыв о курсе "{review.course.title}"!')
             return redirect('course-detail-slug', course_slug=review.course.slug)
     else:
-        form = ReviewForm()
+        form = ReviewForm(student=student, initial=initial)
     
     data = {
         'title': 'Оставить отзыв',
         'form': form,
+        'student': student,
+        'enrolled_courses': enrolled_courses,
     }
     return render(request, 'education/review_form.html', data)
 
@@ -1258,68 +1305,6 @@ def student_attendance(request):
 # ========== УСПЕВАЕМОСТЬ ==========
 
 @login_required
-@teacher_required
-def performance_add(request, group_id):
-    """Выставление оценок студентам группы"""
-    group = get_object_or_404(Group.objects.select_related('course', 'teacher'), id=group_id)
-    
-    # Проверка преподавателя
-    teacher = request.user.teacher_profile
-    if group.teacher != teacher and not request.user.is_superuser:
-        messages.error(request, 'Вы не можете выставлять оценки для этой группы')
-        return redirect('teacher-dashboard')
-    
-    # Получаем студентов группы
-    students = Student.objects.filter(
-        enrollments__group=group,
-        enrollments__is_active=True
-    ).distinct().order_by('last_name', 'first_name')
-    
-    if request.method == 'POST':
-        grade_date = request.POST.get('grade_date')
-        if grade_date:
-            grade_date = datetime.strptime(grade_date, '%Y-%m-%d').date()
-        else:
-            grade_date = date.today()
-        
-        success_count = 0
-        for student in students:
-            grade = request.POST.get(f'grade_{student.id}')
-            comment = request.POST.get(f'comment_{student.id}', '')
-            
-            if grade:
-                Performance.objects.create(
-                    student=student,
-                    group=group,
-                    grade=grade,
-                    comment=comment,
-                    date=grade_date
-                )
-                success_count += 1
-        
-        messages.success(request, f'Оценки выставлены! ({success_count} студентов)')
-        return redirect('group-detail', group_id=group.id)
-    
-    # Предзаполненные оценки (если есть за сегодня)
-    existing_grades = {}
-    today_grades = Performance.objects.filter(
-        group=group,
-        date=date.today()
-    )
-    for perf in today_grades:
-        existing_grades[perf.student_id] = perf
-    
-    data = {
-        'title': f'Выставление оценок: {group.name}',
-        'group': group,
-        'students': students,
-        'existing_grades': existing_grades,
-        'today': date.today(),
-    }
-    return render(request, 'education/performance_add.html', data)
-
-
-@login_required
 def performance_single_add(request, group_id, student_id):
     """Выставление оценки одному студенту"""
     group = get_object_or_404(Group, id=group_id)
@@ -1365,7 +1350,10 @@ def performance_group_report(request, group_id):
     
     student_performance = []
     for student in students:
-        performances = student.performance.filter(group=group).order_by('-date')
+        performances = Performance.objects.filter(
+            student=student,
+            schedule__group=group
+        ).select_related('schedule').order_by('-schedule__date')
         avg_grade = calculate_average_grade(performances)
         
         student_performance.append({
@@ -1391,15 +1379,15 @@ def student_performance(request):
     
     performances = Performance.objects.filter(
         student=student
-    ).select_related('group__course').order_by('-date')
-    
+    ).select_related('schedule__group__course').order_by('-schedule__date')
+
     # Группируем по курсам
     by_course = {}
     for perf in performances:
-        course_id = perf.group.course_id
+        course_id = perf.schedule.group.course_id
         if course_id not in by_course:
             by_course[course_id] = {
-                'course': perf.group.course,
+                'course': perf.schedule.group.course,
                 'performances': [],
             }
         by_course[course_id]['performances'].append(perf)
@@ -1448,3 +1436,73 @@ def calculate_average_grade(performances):
     if grade_values:
         return round(sum(grade_values) / len(grade_values), 2)
     return None
+
+
+@login_required
+@admin_required
+def marketer_create(request):
+    """Создание нового маркетолога"""
+    if request.method == 'POST':
+        form = MarketerForm(request.POST)
+        if form.is_valid():
+            marketer = form.save()
+            
+            username = getattr(form, 'generated_username', marketer.user.username)
+            password = getattr(form, 'generated_password', None)
+            
+            if password:
+                from django.utils.html import format_html
+                msg = format_html(
+                    'Маркетолог <strong>{}</strong> успешно создан!<br>'
+                    '🔑 Логин: <strong>{}</strong><br>'
+                    '🔒 Пароль: <strong>{}</strong>',
+                    marketer.get_full_name(), username, password
+                )
+                messages.success(request, msg)
+                messages.warning(request, '⚠️ Сохраните пароль! Он больше не будет показан.')
+            else:
+                messages.success(request, f'Маркетолог {marketer.get_full_name()} успешно создан!')
+            
+            return redirect('marketers-list')
+    else:
+        form = MarketerForm()
+    
+    data = {
+        'title': 'Регистрация маркетолога',
+        'form': form,
+    }
+    return render(request, 'education/marketer_form.html', data)
+
+
+@login_required
+def marketers_list(request):
+    """Список маркетологов"""
+    marketers = Administrator.objects.select_related('user').all().order_by('last_name', 'first_name')
+    
+    data = {
+        'title': 'Маркетологи',
+        'marketers': marketers,
+    }
+    return render(request, 'education/marketers_list.html', data)
+
+
+@login_required
+@admin_required
+def marketer_delete(request, marketer_id):
+    """Удаление маркетолога"""
+    marketer = get_object_or_404(Administrator, id=marketer_id)
+    
+    if request.method == 'POST':
+        name = marketer.get_full_name()
+        user = marketer.user
+        marketer.delete()
+        if user and not user.is_superuser:
+            user.delete()
+        messages.success(request, f'Маркетолог {name} и его учетная запись удалены!')
+        return redirect('marketers-list')
+    
+    data = {
+        'title': f'Удаление маркетолога: {marketer.get_full_name()}',
+        'marketer': marketer,
+    }
+    return render(request, 'education/marketer_confirm_delete.html', data)

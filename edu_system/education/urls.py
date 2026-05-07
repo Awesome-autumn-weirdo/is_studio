@@ -27,6 +27,11 @@ urlpatterns = [
     path('teacher/<int:teacher_id>/', views.teacher_detail, name='teacher-detail'),
     path('teacher/<int:teacher_id>/update/', views.teacher_update, name='teacher-update'),
     path('teacher/<int:teacher_id>/delete/', views.teacher_delete, name='teacher-delete'),
+
+    # Маркетологи
+    path('marketers/', views.marketers_list, name='marketers-list'),
+    path('marketer/create/', views.marketer_create, name='marketer-create'),
+    path('marketer/<int:marketer_id>/delete/', views.marketer_delete, name='marketer-delete'),
     
     # Группы
     path('groups/', views.groups_list, name='groups-list'),
@@ -54,13 +59,14 @@ urlpatterns = [
     path('attendance/mark/<int:schedule_id>/', views.attendance_mark, name='attendance-mark'),
     path('attendance/group/<int:group_id>/', views.attendance_group_report, name='attendance-group-report'),
     path('attendance/my/', views.student_attendance, name='student-attendance'),
-    path('attendance/bulk/', views.attendance_bulk, name='attendance-bulk'),
-    
+        
     # Успеваемость
-    path('performance/group/<int:group_id>/add/', views.performance_add, name='performance-add'),
     path('performance/group/<int:group_id>/student/<int:student_id>/', views.performance_single_add, name='performance-single-add'),
     path('performance/group/<int:group_id>/report/', views.performance_group_report, name='performance-group-report'),
     path('performance/my/', views.student_performance, name='student-performance'),
+
+    # Журнал
+    path('journal/bulk/', views.journal_bulk, name='journal-bulk'),
     
     # Записи на курсы
     path('enrollment/create/', views.enrollment_create, name='enrollment-create'),

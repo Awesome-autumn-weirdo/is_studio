@@ -14,7 +14,7 @@
     <table class="students-table">
         <thead>
             <tr>
-                <th>ID</th>
+                
                 <th>Логин</th>
                 <th>ФИО</th>
                 <th>Email</th>
@@ -26,7 +26,7 @@
         <tbody>
             {% for student in students %}
             <tr>
-                <td>{{ student.id }}</td>
+                
                 <td>{{ student.user.username|default:"—" }}</td>
                 <td>{{ student.get_full_name }}</td>
                 <td>{{ student.email }}</td>

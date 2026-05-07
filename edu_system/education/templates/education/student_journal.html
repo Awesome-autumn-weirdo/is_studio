@@ -17,8 +17,9 @@
                 <span class="group-badge">{{ data.group.name }}</span>
             </h2>
             
-            <!-- Посещаемость -->
+            <!-- Посещаемость и Оценки -->
             <div class="journal-row">
+                <!-- Посещаемость -->
                 <div class="journal-section">
                     <h3>📅 Посещаемость</h3>
                     
@@ -55,6 +56,8 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    {% else %}
+                    <p class="empty-message">Нет данных о посещаемости</p>
                     {% endif %}
                 </div>
                 
@@ -66,7 +69,7 @@
                     <table class="mini-table">
                         <thead>
                             <tr>
-                                <th>Дата</th>
+                                <th>Дата занятия</th>
                                 <th>Оценка</th>
                                 <th>Комментарий</th>
                             </tr>
@@ -74,9 +77,21 @@
                         <tbody>
                             {% for perf in data.performances %}
                             <tr>
-                                <td>{{ perf.date|date:"d.m.Y" }}</td>
                                 <td>
-                                    <span class="grade grade-{{ perf.grade|lower }}">{{ perf.grade }}</span>
+                                    {% if perf.schedule %}
+                                        {{ perf.schedule.date|date:"d.m.Y" }}
+                                    {% elif perf.created_at %}
+                                        {{ perf.created_at|date:"d.m.Y" }}
+                                    {% elif perf.updated_at %}
+                                        {{ perf.updated_at|date:"d.m.Y" }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="grade {% if perf.grade == '5' %}grade-5{% elif perf.grade == '4' %}grade-4{% elif perf.grade == '3' %}grade-3{% elif perf.grade == '2' %}grade-2{% endif %}">
+                                        {{ perf.grade }}
+                                    </span>
                                 </td>
                                 <td>{{ perf.comment|default:"—"|truncatechars:30 }}</td>
                             </tr>

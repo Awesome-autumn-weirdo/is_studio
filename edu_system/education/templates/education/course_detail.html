@@ -90,10 +90,10 @@
                         <td>{{ group.enrollments.count }}/{{ group.max_students }}</td>
                         {% if is_admin or is_teacher %}
                         <td class="actions">
-                            <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-small">📝</a>
-                            {% if is_admin %}
-                            <a href="{% url 'group-update' group.id %}" class="btn btn-small btn-edit">✏️</a>
-                            <a href="{% url 'group-delete' group.id %}" class="btn btn-small btn-danger">🗑️</a>
+                        {% if is_admin %}
+                            <a href="{% url 'enrollment-create' %}?group={{ group.id }}" class="btn btn-small">📝 Создать группу</a>
+                            <a href="{% url 'group-update' group.id %}" class="btn btn-small btn-edit">✏️ Редактировать</a>
+                            <a href="{% url 'group-delete' group.id %}" class="btn btn-small btn-danger">🗑️ Удалить</a>
                             {% endif %}
                         </td>
                         {% endif %}
@@ -115,8 +115,12 @@
         <div class="course-reviews">
             <div class="reviews-header">
                 <h2>Отзывы студентов</h2>
-                {% if user.is_authenticated %}
-                <a href="{% url 'review-create' %}" class="btn btn-small">✏️ Оставить отзыв</a>
+                {% if user.is_authenticated and 'Студенты' in user_groups %}
+                <div class="add-review-section">
+                    <a href="{% url 'review-create' %}?course={{ course.id }}" class="btn btn-success">
+                        Оставить отзыв
+                    </a>
+                </div>
                 {% endif %}
             </div>
             
